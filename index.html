@@ -1088,6 +1088,9 @@ function nub(item,x,y){
     style="touch-action:none;cursor:grab"/>`;
   if(G.sel===item)s+=`<circle cx="${x}" cy="${y}" r="17" fill="none" stroke="var(--water)"
     stroke-width="2.5" stroke-dasharray="5 4"/>`;
+  /* invisible finger-sized grab area — 27 svg units ≈ 44px on a tablet */
+  s+=`<circle cx="${x}" cy="${y}" r="27" fill="transparent" data-nub="${item}"
+    style="touch-action:none;cursor:grab"/>`;
   return s;
 }
 function kitSVG(){
@@ -1095,7 +1098,7 @@ function kitSVG(){
   s+=`<g filter="url(#ds)"><rect x="${KX}" y="${KY}" width="${KW}" height="${KH}" rx="16"
      fill="url(#gSteel)" stroke="var(--line)" stroke-width="1.5"/></g>`;
   s+=`<text x="${KX+16}" y="${KY+24}" font-size="9.5" letter-spacing="1"
-     font-family="${MF}" fill="var(--muted)">${KITS[G.kit].name.toUpperCase()} GAUGE</text>`;
+     font-family="${MF}" fill="var(--muted)">${G.kit==='five'?'5':'3'}-VALVE KIT</text>`;
   for(const k in P){const p=P[k];
     s+=`<rect x="${p.x-8}" y="${p.y-16}" width="16" height="20" rx="3" fill="var(--brass)"/>`;
     s+=`<rect x="${p.x-8}" y="${p.y-16}" width="16" height="20" rx="3" fill="url(#gBrass)"/>`;
@@ -1156,12 +1159,12 @@ function hosesSVG(){
     else if(h==='bypass'&&G.asm==='rp'&&G.kit==='three')return; // still coiled in the tray
     else end=DANGLE[h];
     if(!end)return;
-    s+=`<path d="${hosePath(start.x,start.y,end.x,end.y)}" fill="none"
+    s+=`<path d="${hosePath(start.x,start.y,end.x,end.y)}" fill="none" pointer-events="none"
        stroke="${HOSES[h].c}" stroke-width="6" stroke-linecap="round" opacity=".85"/>`;
     s+=nub(h,end.x,end.y);
     if(att&&att!=='kit'&&r.loose[h])
       s+=`<text x="${end.x+16}" y="${end.y-8}" font-size="10" font-family="${MF}"
-         fill="var(--warn)">LOOSE</text>`;
+         pointer-events="none" fill="var(--warn)">LOOSE</text>`;
   });
   toolsNeeded().forEach(t=>{
     if(G.drag&&G.drag.item===t){s+=nub(t,G.drag.x,G.drag.y);return}
@@ -1179,7 +1182,7 @@ function hosesSVG(){
     }
   });
   if(G.drag)dropTargets(G.drag.item).forEach(t=>{
-    s+=`<circle class="tgt" cx="${t.x}" cy="${t.y}" r="28" fill="none"
+    s+=`<circle class="tgt" cx="${t.x}" cy="${t.y}" r="28" fill="none" pointer-events="none"
        stroke="var(--water)" stroke-width="2.5" stroke-dasharray="6 5"/>`;});
   return s;
 }
