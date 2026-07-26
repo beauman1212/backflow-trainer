@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Backflow Field-Test Trainer</title>
+
+<style>
+:root{
+  --brass:#A87433; --brass-soft:#E8D8BD; --water:#2A6F97;
+  --ground:#EDEFF1; --surface:#FFFFFF; --sunk:#E2E6EA;
+  --ink:#16202A; --muted:#5C6B78; --line:#CBD3DA;
+  --pass:#1F7A4D; --fail:#C0392B; --warn:#9A6B00;
+  --shadow:0 1px 2px rgba(22,32,42,.08),0 4px 16px rgba(22,32,42,.06);
+  --mono:ui-monospace,"Cascadia Mono","SF Mono",Consolas,monospace;
+  --ui:system-ui,-apple-system,"Segoe UI",sans-serif;
+  --r:8px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --brass:#D9A441; --brass-soft:#3A3018; --water:#4FA3D1;
+    --ground:#0E161C; --surface:#16222B; --sunk:#101A22;
+    --ink:#DCE6ED; --muted:#8399A8; --line:#2A3A46;
+    --pass:#3FA96C; --fail:#E5675A; --warn:#D4A22A;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --brass:#D9A441; --brass-soft:#3A3018; --water:#4FA3D1;
+  --ground:#0E161C; --surface:#16222B; --sunk:#101A22;
+  --ink:#DCE6ED; --muted:#8399A8; --line:#2A3A46;
+  --pass:#3FA96C; --fail:#E5675A; --warn:#D4A22A;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
+}
+:root[data-theme="light"]{
+  --brass:#A87433; --brass-soft:#E8D8BD; --water:#2A6F97;
+  --ground:#EDEFF1; --surface:#FFFFFF; --sunk:#E2E6EA;
+  --ink:#16202A; --muted:#5C6B78; --line:#CBD3DA;
+  --pass:#1F7A4D; --fail:#C0392B; --warn:#9A6B00;
+  --shadow:0 1px 2px rgba(22,32,42,.08),0 4px 16px rgba(22,32,42,.06);
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--ui);
+     font-size:15px;line-height:1.5;-webkit-text-size-adjust:100%}
+h1,h2,h3{text-wrap:balance;margin:0;font-weight:650;letter-spacing:-.01em}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--water);outline-offset:2px;border-radius:4px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.lbl{font-family:var(--mono);font-size:11px;letter-spacing:.09em;
+     text-transform:uppercase;color:var(--muted)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ---------- chrome ---------- */
+.wrap{max-width:1240px;margin:0 auto;padding:0 16px 64px}
+header.bar{position:sticky;top:0;z-index:40;background:var(--ground);
+  border-bottom:1px solid var(--line);padding:10px 0;margin-bottom:16px}
+.bar-in{max-width:1240px;margin:0 auto;padding:0 16px;
+  display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.mark{display:flex;align-items:center;gap:9px;margin-right:auto}
+.mark b{font-size:15px;font-weight:650;letter-spacing:-.02em}
+.mark .sub{font-size:11px;color:var(--muted)}
+.dot{width:11px;height:11px;border-radius:50%;background:var(--brass);
+  box-shadow:0 0 0 3px var(--brass-soft)}
+.timer{font-family:var(--mono);font-size:19px;font-variant-numeric:tabular-nums;
+  letter-spacing:.02em;padding:2px 10px;border-radius:6px;background:var(--sunk)}
+.timer.over{color:var(--fail)}
+.strikes{display:flex;gap:5px;align-items:center}
+.strike{width:10px;height:10px;border-radius:2px;border:1.5px solid var(--line)}
+.strike.on{background:var(--fail);border-color:var(--fail)}
+
+.btn{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  padding:7px 13px;cursor:pointer;font-size:14px;font-weight:500}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--brass);border-color:var(--brass);color:#fff;font-weight:600}
+@media (prefers-color-scheme:dark){.btn.primary{color:#101A22}}
+:root[data-theme="dark"] .btn.primary{color:#101A22}
+:root[data-theme="light"] .btn.primary{color:#fff}
+.btn.ghost{background:transparent}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ---------- setup ---------- */
+.hero{padding:26px 0 8px;max-width:66ch}
+.hero h1{font-size:clamp(26px,4.4vw,38px);line-height:1.1}
+.hero p{color:var(--muted);margin:12px 0 0}
+.note{border-left:3px solid var(--warn);background:var(--sunk);padding:11px 14px;
+  border-radius:0 var(--r) var(--r) 0;margin:20px 0;font-size:13.5px}
+.note b{color:var(--warn)}
+
+.choose{display:grid;gap:18px;margin-top:24px}
+.field>.lbl{display:block;margin-bottom:8px}
+.opts{display:flex;gap:9px;flex-wrap:wrap}
+.opt{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r);
+  padding:11px 15px;cursor:pointer;text-align:left;min-width:112px}
+.opt[aria-pressed="true"]{border-color:var(--brass);background:var(--brass-soft)}
+.opt .t{font-weight:600;display:block;font-size:14px}
+.opt .d{font-size:11.5px;color:var(--muted);display:block;margin-top:2px}
+
+/* ---------- rig ---------- */
+.rig{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,1fr);
+  gap:16px;align-items:start}
+@media (max-width:940px){.rig{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;
+  box-shadow:var(--shadow);overflow:hidden}
+.panel-h{display:flex;align-items:center;gap:10px;padding:10px 14px;flex-wrap:wrap;
+  border-bottom:1px solid var(--line);background:var(--sunk)}
+.panel-h .lbl{margin-right:auto}
+.panel-b{padding:14px}
+
+/* On a phone the schematic must stay readable and tappable, so the panel
+   scrolls sideways rather than scaling the rig down to nothing. */
+.stage-wrap{overflow-x:auto;background:var(--sunk);-webkit-overflow-scrolling:touch}
+.stage{width:100%;min-width:700px;height:auto;display:block;touch-action:manipulation}
+.hot{cursor:pointer}
+.hot:hover .hit{stroke:var(--water);stroke-width:2.5}
+
+/* ---------- stage interactions ---------- */
+.stage{-webkit-user-select:none;user-select:none}
+#stage [data-nub]{cursor:grab;touch-action:none}
+#stage .hot,#stage [data-valve]{cursor:pointer}
+.stage-cap{padding:9px 14px;border-top:1px solid var(--line);font-size:12px;
+  color:var(--muted)}
+.stage-cap b{color:var(--ink);font-weight:600}
+@keyframes drip{from{transform:translateY(0);opacity:.95}to{transform:translateY(30px);opacity:0}}
+#stage .drip{animation:drip 1.1s linear infinite}
+#stage .d2{animation-delay:.36s}
+#stage .d3{animation-delay:.72s}
+@keyframes tgt{0%,100%{stroke-opacity:.9}50%{stroke-opacity:.3}}
+#stage .tgt{animation:tgt 1s ease-in-out infinite}
+
+/* ---------- console ---------- */
+.step-n{font-family:var(--mono);font-size:12px;color:var(--brass);font-weight:600}
+.step-say{font-size:17px;font-weight:600;margin:6px 0 0;line-height:1.35}
+.step-why{font-size:13.5px;color:var(--muted);margin:9px 0 0}
+.cite{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:10px;
+  padding-top:8px;border-top:1px dashed var(--line)}
+.hidden-step{color:var(--muted);font-style:italic;font-size:15px}
+.prog{height:4px;background:var(--sunk);border-radius:2px;overflow:hidden;margin-top:12px}
+.prog i{display:block;height:100%;background:var(--brass);transition:width .25s}
+
+.log{max-height:230px;overflow-y:auto;display:grid;gap:1px;background:var(--line)}
+.log .row{background:var(--surface);padding:7px 12px;font-size:12.5px;display:flex;gap:8px}
+.log .row .k{font-family:var(--mono);font-size:11px;color:var(--muted);flex:none}
+.log .row.bad{background:color-mix(in srgb,var(--fail) 9%,var(--surface))}
+.log .row.good .k{color:var(--pass)}
+
+.chip{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);
+  font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;
+  border-radius:20px;border:1px solid var(--line)}
+.chip.pass{color:var(--pass);border-color:var(--pass)}
+.chip.fail{color:var(--fail);border-color:var(--fail)}
+.chip.warn{color:var(--warn);border-color:var(--warn)}
+
+/* ---------- popover + modal ---------- */
+.pop{position:absolute;z-index:60;background:var(--surface);border:1px solid var(--line);
+  border-radius:10px;box-shadow:var(--shadow);padding:6px;min-width:190px}
+.pop .ttl{padding:5px 9px 7px;border-bottom:1px solid var(--line);margin-bottom:5px}
+.pop button{display:block;width:100%;text-align:left;background:none;border:0;
+  padding:8px 10px;border-radius:6px;cursor:pointer;font-size:13.5px}
+.pop button:hover{background:var(--sunk)}
+.scrim{position:fixed;inset:0;background:rgba(10,16,22,.55);z-index:70;
+  display:grid;place-items:center;padding:16px}
+.modal{background:var(--surface);border-radius:14px;box-shadow:var(--shadow);
+  max-width:520px;width:100%;max-height:88vh;overflow-y:auto}
+.modal .panel-b{padding:18px}
+.readout{background:var(--sunk);border-radius:10px;padding:14px;text-align:center;margin-bottom:14px}
+.readout .big{font-family:var(--mono);font-size:34px;font-variant-numeric:tabular-nums;
+  letter-spacing:-.02em;display:block}
+input[type=number],input[type=text],select{font:inherit;font-family:var(--mono);
+  background:var(--sunk);border:1.5px solid var(--line);border-radius:7px;
+  padding:9px 11px;color:var(--ink);width:100%}
+.radios{display:grid;gap:7px;margin:10px 0}
+.radios label{display:flex;gap:9px;align-items:center;border:1.5px solid var(--line);
+  border-radius:7px;padding:9px 11px;cursor:pointer;font-size:14px}
+.radios input{accent-color:var(--brass)}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:520px){.grid2{grid-template-columns:1fr}}
+table.rep{width:100%;border-collapse:collapse;font-size:13px}
+table.rep th,table.rep td{border:1px solid var(--line);padding:7px 9px;text-align:left}
+table.rep th{background:var(--sunk);font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+table.rep td.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.scroll-x{overflow-x:auto}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.stat{background:var(--sunk);border-radius:9px;padding:11px 13px}
+.stat .v{font-family:var(--mono);font-size:23px;font-variant-numeric:tabular-nums;display:block}
+.stat .k{font-size:11px;color:var(--muted)}
+.bar-track{height:6px;background:var(--sunk);border-radius:3px;overflow:hidden;margin-top:5px}
+.bar-track i{display:block;height:100%;background:var(--fail)}
+
+details.src{margin-top:12px;font-size:13px}
+details.src summary{cursor:pointer;color:var(--muted);font-family:var(--mono);
+  font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+details.src ul{margin:9px 0 0;padding-left:18px;color:var(--muted);line-height:1.7}
+.screen[hidden]{display:none}
+</style>
+
+<header class="bar">
+  <div class="bar-in">
+    <div class="mark">
+      <span class="dot"></span>
+      <span>
+        <b>Backflow Field-Test Trainer</b><br>
+        <span class="sub">USC 10th Ed. procedure &middot; Arizona</span>
+      </span>
+    </div>
+    <div id="hud" style="display:none;gap:12px;align-items:center" class="hud">
+      <span class="strikes" id="strikes" title="Errors on this assembly"></span>
+      <span class="timer" id="timer">00:00</span>
+      <button class="btn ghost" id="quit">End</button>
+    </div>
+    <button class="btn ghost" id="theme" title="Toggle light / dark">&#9681;</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ================= SETUP ================= -->
+  <section class="screen" id="s-setup">
+    <div class="hero">
+      <h1>Drill the hands-on until the sequence is muscle memory.</h1>
+      <p>The practical isn't graded on whether you know what a check valve does &mdash; it's
+      graded on whether you do every step in the right order, at the right speed, without
+      being told. This rig makes you do exactly that.</p>
+    </div>
+
+    <div class="note">
+      <b>Which edition?</b> Arizona's rule (A.A.C. R18-4-215) still names the USC Manual
+      <b>9th Edition</b> and says "no future editions." Every body that actually proctors in
+      Arizona &mdash; ABPA, CA-NV AWWA, ASSE &mdash; teaches and grades the <b>10th Edition</b>.
+      This trainer drills the 10th. Where the two differ, the step is flagged
+      <span class="chip warn">9th &ne; 10th</span> so you know it's a real trap.
+    </div>
+
+    <div class="choose">
+      <div class="field">
+        <span class="lbl">Assembly</span>
+        <div class="opts" id="pick-asm"></div>
+      </div>
+      <div class="field">
+        <span class="lbl">Test kit</span>
+        <div class="opts" id="pick-kit"></div>
+      </div>
+      <div class="field">
+        <span class="lbl">Condition set by the proctor</span>
+        <div class="opts" id="pick-scn"></div>
+      </div>
+      <div class="field">
+        <span class="lbl">Mode</span>
+        <div class="opts" id="pick-mode"></div>
+      </div>
+      <div>
+        <button class="btn primary" id="start" style="padding:11px 22px;font-size:15px">
+          Start the test
+        </button>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:28px">
+      <div class="panel-h"><span class="lbl">Where you're losing points</span>
+        <button class="btn ghost" id="reset-stats" style="font-size:12px;padding:4px 9px">Reset</button>
+      </div>
+      <div class="panel-b" id="stats-box"></div>
+    </div>
+
+    <details class="src">
+      <summary>Sources &amp; what's verified</summary>
+      <ul id="src-list"></ul>
+    </details>
+  </section>
+
+  <!-- ================= DRILL ================= -->
+  <section class="screen" id="s-drill" hidden>
+    <div class="rig">
+      <div style="display:grid;gap:16px">
+        <div class="panel">
+          <div class="panel-h">
+            <span class="lbl" id="asm-name">Assembly</span>
+            <span class="chip" id="kit-chip"></span>
+            <span class="chip" id="scn-chip">condition hidden</span>
+          </div>
+          <div class="stage-wrap">
+            <svg class="stage" id="stage" viewBox="0 0 900 650" role="img"
+                 aria-label="Backflow assembly and test kit"></svg>
+          </div>
+          <div class="stage-cap"><b>Drag</b> a hose end onto a test cock &middot;
+            <b>tap</b> test cocks, shutoffs and kit valves to operate them &middot;
+            or tap a hose end, then tap the port</div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-h"><span class="lbl">Field actions</span></div>
+          <div class="panel-b" style="display:flex;gap:7px;flex-wrap:wrap" id="field-acts"></div>
+        </div>
+      </div>
+
+      <div style="display:grid;gap:16px;position:sticky;top:76px">
+        <div class="panel">
+          <div class="panel-h">
+            <span class="lbl">Next step</span>
+            <button class="btn ghost" id="hint" style="font-size:12px;padding:4px 9px">Hint</button>
+          </div>
+          <div class="panel-b">
+            <div id="step-box"></div>
+            <div class="prog"><i id="prog" style="width:0"></i></div>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button class="btn ghost" id="skip" style="font-size:12.5px">Skip step &mdash; counts as an error</button>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><span class="lbl">Action log</span></div>
+          <div class="log" id="log"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= RESULT ================= -->
+  <section class="screen" id="s-result" hidden></section>
+</div>
+
+<div id="pop-host"></div>
+<div id="modal-host"></div>
+
+<script>
+/* ==========================================================================
+   Backflow Field-Test Trainer
+   Procedure data traced to USC FCCCHR 10th Ed. structure (via ABPA Ch.9
+   handout + USC 9th-vs-10th comparison sheet) with keystroke-level sequences
+   from Mid-West Instrument kit bulletins and a published 5-valve procedure
+   sheet. Confidence tags: A = standards body / .gov, B = manufacturer or
+   training provider. Anything unverified is labelled in the UI, not hidden.
+   ========================================================================== */
+
+/* He will use this on a phone. Without this the page lays out at 980px and
+   zooms out to unreadable. Only added when the host page hasn't set one. */
+if(!document.querySelector('meta[name=viewport]')){
+  const mv=document.createElement('meta');
+  mv.name='viewport'; mv.content='width=device-width,initial-scale=1';
+  document.head.appendChild(mv);
+}
+
+const CATS={
+  prep:'Pre-test / setup', sequence:'Step order', hookup:'Hose &amp; tool hookup',
+  bleed:'Purging air', speed:'Speed &amp; valve travel', elevation:'Gauge elevation',
+  reading:'Reading &amp; diagnosis', restore:'Restoring the system', paperwork:'Report form'
+};
+
+const KITS={
+  five:{id:'five',name:'5-valve differential',hint:'Mid-West 830 / 845-5 class',
+    valves:['highBleed','lowBleed','bypass','highControl','lowControl']},
+  three:{id:'three',name:'3-valve differential',hint:'Mid-West 845-3 / Watts TK-9A class',
+    valves:['highBleed','lowBleed','bypass']}
+};
+const VALVES={
+  highBleed:{n:'High-side bleed',c:'#C0392B'}, lowBleed:{n:'Low-side bleed',c:'#2A6F97'},
+  bypass:{n:'Bypass',c:'#C9A227'}, highControl:{n:'High control',c:'#C0392B'},
+  lowControl:{n:'Low control',c:'#2E7D4F'}
+};
+const HOSES={
+  high:{n:'High hose',c:'#C0392B'}, low:{n:'Low hose',c:'#2A6F97'},
+  bypass:{n:'Bypass hose',c:'#C9A227'}, bleed:{n:'Bleed valve tool',c:'#7A8894'},
+  sight:{n:'Sight tube',c:'#9FB3C0'}
+};
+
+/* ---- geometry: y=250 is the main pipe ---- */
+const ASM={
+  rp:{name:'RP — Reduced Pressure Principle',short:'RP',cocks:[1,2,3,4],
+    parts:[{t:'sov',id:'sov1',x:120,lab:'Shutoff #1'},{t:'tc',id:'tc1',x:170},
+      {t:'body',x0:210,x1:700},{t:'tc',id:'tc2',x:250},{t:'ck',x:305,lab:'Check #1'},
+      {t:'tc',id:'tc3',x:430},{t:'relief',x:470},{t:'ck',x:560,lab:'Check #2'},
+      {t:'tc',id:'tc4',x:650},{t:'sov',id:'sov2',x:770,lab:'Shutoff #2'}]},
+  dc:{name:'DC — Double Check Valve',short:'DC',cocks:[1,2,3,4],
+    parts:[{t:'sov',id:'sov1',x:120,lab:'Shutoff #1'},{t:'tc',id:'tc1',x:170},
+      {t:'body',x0:210,x1:700},{t:'tc',id:'tc2',x:250},{t:'ck',x:320,lab:'Check #1'},
+      {t:'tc',id:'tc3',x:450},{t:'ck',x:560,lab:'Check #2'},
+      {t:'tc',id:'tc4',x:650},{t:'sov',id:'sov2',x:770,lab:'Shutoff #2'}]},
+  pvb:{name:'PVB — Pressure Vacuum Breaker',short:'PVB',cocks:[1,2],canopy:true,
+    parts:[{t:'sov',id:'sov1',x:130,lab:'Shutoff #1'},{t:'body',x0:200,x1:680},
+      {t:'tc',id:'tc1',x:240},{t:'ck',x:310,lab:'Check valve'},
+      {t:'tc',id:'tc2',x:450},{t:'air',x:560,lab:'Air inlet'},
+      {t:'sov',id:'sov2',x:770,lab:'Shutoff #2'}]},
+  svb:{name:'SVB — Spill-Resistant Vacuum Breaker',short:'SVB',cocks:[1],canopy:true,vent:true,
+    parts:[{t:'sov',id:'sov1',x:130,lab:'Shutoff #1'},{t:'body',x0:200,x1:680},
+      {t:'ck',x:280,lab:'Check valve'},{t:'tc',id:'tc1',x:420},
+      {t:'air',x:530,lab:'Air inlet'},{t:'vent',x:620},
+      {t:'sov',id:'sov2',x:770,lab:'Shutoff #2'}]}
+};
+
+/* ---- what each recorded result is ---- */
+const RECS={
+  apparent:{q:'Apparent reading before the relief valve test',val:1,
+    verdicts:['Recorded'],rule:'Write down what the gauge shows before you touch a control valve. It is a required entry.'},
+  reliefOpen:{q:'Differential relief valve',val:1,thresh:2.0,
+    verdicts:['Opened at','Did not open'],rule:'Must open at 2.0 psid or more.'},
+  ck2tight:{q:'Check valve #2',val:0,verdicts:['Closed tight','Leaked'],
+    rule:'Tight against backpressure. No psid value is recorded for check #2 on an RP.'},
+  ck1:{q:'Check valve #1',val:1,thresh:5.0,verdicts:['Closed tight','Leaked'],
+    rule:'10th Ed: at least 5.0 psid AND above the relief valve opening point.'},
+  dck1:{q:'Check valve #1',val:1,thresh:1.0,verdicts:['Closed tight','Leaked'],
+    rule:'At least 1.0 psid, drip-tight in the direction of flow.'},
+  dck2:{q:'Check valve #2',val:1,thresh:1.0,verdicts:['Closed tight','Leaked'],
+    rule:'At least 1.0 psid, drip-tight in the direction of flow.'},
+  airOpen:{q:'Air inlet opening point',val:1,thresh:1.0,
+    verdicts:['Opened at','Did not open'],rule:'Must open at 1.0 psid or more.'},
+  airFull:{q:'Did the air inlet open FULLY?',val:0,verdicts:['Yes — opened fully','No'],
+    rule:'A separate graded field on both the USC and Phoenix forms.'},
+  ckv:{q:'Check valve',val:1,thresh:1.0,verdicts:['Held at','Leaked'],
+    rule:'At least 1.0 psid in the direction of flow.'}
+};
+
+/* ---- proctor conditions. values are what the gauge will actually show ---- */
+const SCN={
+  rp:{
+    ok:{n:'Properly operating',d:'Everything passes — practise not over-diagnosing',
+      r:{apparent:[9.8,0],reliefOpen:[3.6,0],ck2tight:[null,0],ck1:[8.9,0]}},
+    relief:{n:'Relief valve malfunction',d:'Gauge falls to zero, nothing discharges',
+      r:{apparent:[9.6,0],reliefOpen:[0,1],ck2tight:[null,0],ck1:[8.4,0]}},
+    reliefLow:{n:'Relief valve opens low',d:'Opens, but under 2.0 psid',
+      r:{apparent:[9.7,0],reliefOpen:[1.4,0],ck2tight:[null,0],ck1:[8.6,0]}},
+    ck1:{n:'Leaking 1st check',d:'Relief drips continuously during setup',
+      r:{apparent:[4.1,0],reliefOpen:[3.3,0],ck2tight:[null,0],ck1:[3.2,1]}},
+    ck2:{n:'Leaking 2nd check',d:'Backpressure bleeds back into the zone',
+      r:{apparent:[9.5,0],reliefOpen:[3.5,0],ck2tight:[null,1],ck1:[8.7,0]}}
+  },
+  dc:{
+    ok:{n:'Properly operating',d:'Both checks hold',r:{dck1:[4.8,0],dck2:[3.9,0]}},
+    ck1:{n:'Leaking 1st check',d:'Water keeps running from the sight tube',
+      r:{dck1:[0.6,1],dck2:[3.7,0]}},
+    ck2:{n:'Leaking 2nd check',d:'Second check will not hold',
+      r:{dck1:[4.6,0],dck2:[0.4,1]}}
+  },
+  pvb:{
+    ok:{n:'Properly operating',d:'Air inlet and check both pass',
+      r:{airOpen:[3.2,0],airFull:[null,0],ckv:[4.1,0]}},
+    air:{n:'Air inlet opens low',d:'Opens under 1.0 psid',
+      r:{airOpen:[0.7,0],airFull:[null,0],ckv:[4.0,0]}},
+    stuck:{n:'Air inlet does not open fully',d:'Opens, but binds part-way',
+      r:{airOpen:[2.9,0],airFull:[null,1],ckv:[3.8,0]}},
+    ckv:{n:'Leaking check valve',d:'Check will not hold 1.0 psid',
+      r:{airOpen:[3.1,0],airFull:[null,0],ckv:[0.5,1]}}
+  },
+  svb:{
+    ok:{n:'Properly operating',d:'Check and air inlet both pass',
+      r:{ckv:[3.8,0],airOpen:[2.6,0],airFull:[null,0]}},
+    ckv:{n:'Leaking check valve',d:'Check will not hold',
+      r:{ckv:[0.6,1],airOpen:[2.4,0],airFull:[null,0]}},
+    air:{n:'Air inlet opens low',d:'Opens under 1.0 psid',
+      r:{ckv:[3.6,0],airOpen:[0.8,0],airFull:[null,0]}},
+    stuck:{n:'Air inlet does not open fully',d:'Binds part-way open',
+      r:{ckv:[3.5,0],airOpen:[2.7,0],airFull:[null,1]}}
+  }
+};
+
+const S=(d,say,cat,why,x)=>Object.assign({d,say,cat,why},x||{});
+const ANY=(steps,say)=>({anyOrder:steps,say});
+
+/* Universal preliminaries — USC 9.1, the N-I-I-O mnemonic */
+const PRELIM=[
+  S('field.notify','Notify the water user','prep',
+    'USC 9.1.3.1. On a fire sprinkler system you must also notify the alarm company or fire department and state the expected downtime.'),
+  S('field.identify','Identify the assembly — make, model, size, serial','prep',
+    'USC 9.1.3.2. All four go on the report form. A blank serial number gets a Phoenix report rejected.'),
+  S('field.inspect','Inspect the installation','prep',
+    'USC 9.1.3.3. Right assembly for the hazard, right orientation, both shutoffs present, test cocks properly located.'),
+  S('field.observe','Observe for signs of leakage','prep',
+    'USC 9.1.3.4. Moss, algae, plant growth, soil erosion — all tell you the assembly has been discharging.')
+];
+const RESTORE_SOV2=[
+  S('sov2.openSlow','Slowly open shutoff #2','restore',
+    'Slowly, to avoid water hammer. Speed here is gradeable.')
+];
+const RESTORE_BOTH=[
+  S('sov1.open','Open shutoff #1','restore',
+    'Number one first, with #2 still closed, so the assembly repressurises before you let it into the building.'),
+  S('sov2.openSlow','Slowly open shutoff #2','restore','Slowly, to avoid water hammer.')
+];
+
+/* ============ RP, 5-valve — USC 10th Ed ============ */
+const RP5=[...PRELIM,
+  S('tc4.open','Open test cock #4','sequence',
+    '10th Ed flushes 4→3→2→1 then closes 1→2→3→4, so flow moves through the assembly and the relief valve is less likely to dump.',
+    {flag:'9th ≠ 10th'}),
+  S('tc3.open','Open test cock #3','sequence','Still flushing, in descending order.',{flag:'9th ≠ 10th'}),
+  S('tc2.openSlow','SLOWLY open test cock #2','speed',
+    'Open #2 fast and you dump the relief valve. Proctors fail people for this exact thing.'),
+  S('tc1.open','Open test cock #1','sequence','Last one open. All four are now open.',{flag:'9th ≠ 10th'}),
+  S('tc1.close','Close test cock #1','sequence','Now close them back up in ascending order — 1, 2, 3, 4.',{flag:'9th ≠ 10th'}),
+  S('tc2.closeSlow','SLOWLY close test cock #2','speed','Same reason as opening it — slowly.'),
+  S('tc3.close','Close test cock #3','sequence','',{flag:'9th ≠ 10th'}),
+  S('tc4.close','Close test cock #4','sequence','',{flag:'9th ≠ 10th'}),
+  S('hose.low@tc3','Attach the LOW hose to test cock #3','hookup',
+    'Low side reads the zone, between the two checks.'),
+  S('hose.high@tc2','Attach the HIGH hose to test cock #2','hookup',
+    'High side reads supply pressure upstream of check #1. The relief valve test is the differential across check #1.'),
+  S('hose.bypass.loose@tc4','Attach the BYPASS hose to test cock #4 — LOOSELY','hookup',
+    'Left loose on purpose. You will bleed air out of this hose through the loose end later.'),
+  S('tc3.open','Open test cock #3','sequence',''),
+  S('nv.lowBleed.open','Open the low-side bleed — leave it open','bleed',
+    'Purges air out of the low hose and the gauge low chamber. Trapped air gives a false low reading.'),
+  S('tc2.open','Open test cock #2','sequence',''),
+  S('nv.highBleed.openSlow','SLOWLY open the high-side bleed — leave it open','speed',
+    'Slowly, again so the relief valve does not discharge.'),
+  S('sov2.close','Close shutoff #2','sequence',
+    '10th Ed closes shutoff #2 FIRST, then the two bleeds. The 9th Ed closed the bleeds first. Getting this backwards risks discharging the relief valve — a classic instant fail.',
+    {flag:'9th ≠ 10th'}),
+  S('nv.highBleed.close','Close the high-side bleed','sequence','Second in the new order.',{flag:'9th ≠ 10th'}),
+  S('nv.lowBleed.close','Close the low-side bleed','sequence','Third.',{flag:'9th ≠ 10th'}),
+  S('rec.apparent','Record the apparent reading','reading',
+    'Written down before you touch the control valves. It is a required entry, not a formality.'),
+  S('nv.highControl.open1','Open the high control valve ONE turn — leave it open','sequence',
+    'Sets up the controlled path across the gauge. It stays open for the rest of the test.'),
+  S('nv.lowControl.openQ','Open the low control valve NO MORE than a quarter turn','speed',
+    'A quarter turn walks the zone down slowly enough to catch the exact opening point. More than that and you blow past it.'),
+  S('rec.reliefOpen','Watch the relief valve — record the opening point','reading',
+    'The reading at the instant the relief valve first drips. Must be 2.0 psid or more. If the gauge falls to zero and nothing discharges, record "did not open".'),
+  S('nv.lowControl.close','Close the low control valve','sequence',''),
+  S('nv.bypass.open','Open the bypass control valve','bleed',
+    'Water pushes the air out of the loose bypass hose. An un-bled bypass hose invalidates the check #2 test.'),
+  S('nv.bypass.close','Close the bypass control valve','sequence',''),
+  S('hose.bypass.tighten','Tighten the bypass hose onto test cock #4','hookup','Now that it is purged.'),
+  S('tc4.open','Open test cock #4','sequence','Puts downstream pressure on the bypass.'),
+  S('nv.lowBleed.open','Open the low-side bleed','sequence','Re-establishes the zone — drives the needle back up the scale.'),
+  S('nv.lowBleed.close','Close the low-side bleed','sequence',''),
+  S('nv.bypass.open1','Open the bypass control valve one turn','sequence',
+    'Applies backpressure across check #2.'),
+  S('rec.ck2tight','Record check valve #2','reading',
+    'If the gauge does NOT drop to the relief valve opening point, check #2 is closed tight. If it drops and the relief discharges, open the low-side bleed first to relieve disc compression and re-confirm before you write "leaked".'),
+  S('nv.lowBleed.open','Open the low-side bleed','sequence','Re-establish the zone once more for the check #1 reading.'),
+  S('nv.lowBleed.close','Close the low-side bleed','sequence',''),
+  S('rec.ck1','Record check valve #1','reading',
+    '10th Ed: 5.0 psid or more, AND above the relief valve opening point. The 9th Ed instead said 3.0 psid greater than the relief opening point.',
+    {flag:'9th ≠ 10th'}),
+  ANY([S('tc2.close','Close test cock #2','sequence',''),S('tc3.close','Close test cock #3','sequence',''),
+       S('tc4.close','Close test cock #4','sequence','')],'Close the test cocks'),
+  S('field.removeKit','Remove the hoses and fittings','sequence','Nothing gets left attached.'),
+  ...RESTORE_SOV2];
+
+/* ============ RP, 3-valve — no separate control valves ============ */
+const RP3=[...PRELIM,
+  S('tc4.open','Open test cock #4','sequence','Flush 4→3→2→1.',{flag:'9th ≠ 10th'}),
+  S('tc3.open','Open test cock #3','sequence',''),
+  S('tc2.openSlow','SLOWLY open test cock #2','speed','So the relief valve does not dump.'),
+  S('tc1.open','Open test cock #1','sequence',''),
+  S('tc1.close','Close test cock #1','sequence','Now close 1→2→3→4.'),
+  S('tc2.closeSlow','SLOWLY close test cock #2','speed',''),
+  S('tc3.close','Close test cock #3','sequence',''),
+  S('tc4.close','Close test cock #4','sequence',''),
+  S('hose.high@tc2','Attach the HIGH hose to test cock #2','hookup','High side to supply.'),
+  S('hose.low@tc3','Attach the LOW hose to test cock #3','hookup','Low side to the zone.'),
+  S('hose.bypass@kit','Attach the BYPASS hose to the bypass port — free end open','hookup',
+    'On a 3-valve kit there are no control valves. You bleed the low side out through the bypass hose instead.'),
+  S('tc2.open','Open test cock #2','sequence',''),
+  S('tc3.open','Open test cock #3','sequence',''),
+  S('nv.bypass.open','Fully open the bypass valve','sequence','Opens the path out through the bypass hose.'),
+  S('nv.lowBleed.open','Open the low valve to bleed through the bypass hose','bleed',
+    'The low valve does double duty on a 3-valve kit — this is the purge.'),
+  S('nv.highBleed.open','Open the high valve to purge the high side','bleed',''),
+  S('sov2.close','Close shutoff #2','sequence','Shutoff #2 before the valves — same 10th Ed order.',{flag:'9th ≠ 10th'}),
+  S('nv.highBleed.close','Close the high valve','sequence',''),
+  S('nv.lowBleed.close','Close the low valve','sequence',''),
+  S('nv.bypass.close','Close the bypass valve','sequence',''),
+  S('rec.apparent','Record the apparent reading','reading','Before you go looking for the opening point.'),
+  S('nv.highBleed.open','Open the high valve','sequence','Stays open while you find the opening point.'),
+  S('nv.lowBleed.openQ','Open the low valve a quarter turn','speed',
+    'No more than a quarter — this is what walks the zone down to the opening point.'),
+  S('rec.reliefOpen','Record the relief valve opening point','reading','2.0 psid or more.'),
+  S('nv.lowBleed.close','Close the low valve','sequence',''),
+  S('hose.low.loosen@tc3','Loosen the low hose at test cock #3 until the needle climbs','hookup',
+    'On a 3-valve kit, physically loosening the hose does the job the low-side bleed does on a 5-valve. Re-tighten it before you read anything.'),
+  S('hose.low.tighten','Re-tighten the low hose at test cock #3','hookup',''),
+  S('hose.bypass@tc4','Attach the bypass hose to test cock #4','hookup',''),
+  S('tc4.open','Open test cock #4','sequence',''),
+  S('nv.bypass.open','Open the bypass valve','sequence','Applies backpressure across check #2.'),
+  S('rec.ck2tight','Record check valve #2','reading',
+    'No drop to the relief opening point means closed tight. Relieve disc compression before calling it a leak.'),
+  S('nv.highBleed.close','Close the high valve','sequence','Resetting for the check #1 reading.'),
+  S('nv.bypass.close','Close the bypass valve','sequence',''),
+  S('tc4.close','Close test cock #4','sequence',''),
+  S('hose.bypass.remove','Disconnect the bypass hose','hookup',''),
+  S('nv.lowBleed.open','Open the low valve to re-raise the needle','sequence',''),
+  S('nv.lowBleed.close','Close the low valve','sequence',''),
+  S('rec.ck1','Record check valve #1','reading','5.0 psid or more, and above the relief opening point.',{flag:'9th ≠ 10th'}),
+  ANY([S('tc2.close','Close test cock #2','sequence',''),S('tc3.close','Close test cock #3','sequence','')],
+      'Close the test cocks'),
+  S('field.removeKit','Remove the hoses and fittings','sequence',''),
+  ...RESTORE_SOV2];
+
+/* ============ DC — high side + sight tube only ============ */
+const DC=[...PRELIM,
+  ANY([S('tc1.flush','Flush test cock #1','sequence',''),S('tc2.flush','Flush test cock #2','sequence',''),
+       S('tc3.flush','Flush test cock #3','sequence',''),S('tc4.flush','Flush test cock #4','sequence','')],
+      'Flush all four test cocks — any order on a DC'),
+  S('tube.sight@tc3','Attach the sight tube to test cock #3','hookup',
+    'The sight tube is your reference. You read "water stops running", not a needle.'),
+  S('tool.bleed@tc2','Attach the bleed valve tool to test cock #2','hookup',''),
+  S('hose.high@tc2','Attach the HIGH hose to test cock #2','hookup','A DC uses the high side only.'),
+  S('tc2.open','Open test cock #2','sequence',''),
+  S('nv.highBleed.open','Open the high-side bleed to purge the hose and gauge','bleed',
+    'Air in the line is the single most common cause of a false low reading.'),
+  S('nv.highBleed.close','Close the high-side bleed','sequence',''),
+  S('tc3.open','Open test cock #3 and fill the sight tube','sequence',''),
+  S('tc3.close','Close test cock #3','sequence',''),
+  S('sov2.close','Close shutoff #2','sequence','Number two before number one. Always.'),
+  S('field.elevation','Hold the gauge at the proper elevation','elevation',
+    'The 10th Ed promoted this from a footnote to an explicit step. Gauge centreline level with the sight tube water level, or your reading is wrong.',
+    {flag:'9th ≠ 10th'}),
+  S('sov1.close','Close shutoff #1','sequence',''),
+  S('tc3.openSlow','SLOWLY open test cock #3','speed',''),
+  S('rec.dck1','When water stops running from the sight tube, record check #1','reading',
+    '1.0 psid minimum. If water keeps running, a shutoff is leaking — compensate with the bleed valve until you have a single drop at a time, then read.'),
+  ANY([S('tc2.close','Close test cock #2','sequence',''),S('tc3.close','Close test cock #3','sequence','')],
+      'Close test cocks #2 and #3'),
+  S('sov1.open','Open shutoff #1 to repressurise','sequence',''),
+  S('tube.sight@tc4','Move the sight tube to test cock #4','hookup',''),
+  S('tool.bleed@tc3','Move the bleed valve tool to test cock #3','hookup',''),
+  S('hose.high@tc3','Move the HIGH hose to test cock #3','hookup','Now reading across check #2.'),
+  S('tc3.open','Open test cock #3','sequence',''),
+  S('nv.highBleed.open','Open the high-side bleed to purge','bleed',''),
+  S('nv.highBleed.close','Close the high-side bleed','sequence',''),
+  S('tc4.open','Open test cock #4 and fill the sight tube','sequence',''),
+  S('tc4.close','Close test cock #4','sequence',''),
+  S('field.elevation','Hold the gauge at the proper elevation','elevation','Explicit step again on the second check.',{flag:'9th ≠ 10th'}),
+  S('sov1.close','Close shutoff #1','sequence',''),
+  S('tc4.openSlow','SLOWLY open test cock #4','speed',''),
+  S('rec.dck2','When water stops running, record check #2','reading','1.0 psid minimum, drip-tight in the direction of flow.'),
+  ANY([S('tc3.close','Close test cock #3','sequence',''),S('tc4.close','Close test cock #4','sequence','')],
+      'Close the test cocks'),
+  S('field.removeKit','Remove the hoses, tube and fittings','sequence',''),
+  ...RESTORE_BOTH];
+
+/* ============ PVB — air inlet FIRST ============ */
+const PVB=[...PRELIM,
+  S('canopy.remove','Remove the air inlet canopy','prep',
+    'You cannot see the air inlet open with the canopy on. Forgetting to put it back at the end is also an error.'),
+  ANY([S('tc1.flush','Flush test cock #1','sequence',''),S('tc2.flush','Flush test cock #2','sequence','')],
+      'Flush both test cocks — any order'),
+  S('tool.bleed@tc2','Attach the bleed valve tool to test cock #2','hookup',
+    '10th Ed installs the bleed-off arrangement at the START of a PVB test. The 9th Ed only added it if shutoff #1 was found leaking.',
+    {flag:'9th ≠ 10th'}),
+  S('hose.high@tc2','Attach the HIGH hose to test cock #2','hookup',''),
+  S('tc2.open','Open test cock #2','sequence',''),
+  S('nv.highBleed.open','Open the high-side bleed to purge the hose and gauge','bleed',''),
+  S('nv.highBleed.close','Close the high-side bleed','sequence',''),
+  S('sov2.close','Close shutoff #2','sequence',''),
+  S('field.elevation','Hold the gauge at the proper elevation','elevation',
+    'Level with the air inlet.',{flag:'9th ≠ 10th'}),
+  S('sov1.close','Close shutoff #1','sequence',''),
+  S('nv.highBleed.openSlow','SLOWLY open the high-side bleed — watch the needle AND the air inlet','speed',
+    'Two things at once. Fill the top of the air inlet with water beforehand and the moment it opens is far easier to see.'),
+  S('rec.airOpen','Record the air inlet opening point','reading','1.0 psid or more above atmospheric.'),
+  S('hose.high.remove','Remove the high hose and bleed tool from test cock #2','sequence',
+    '10th Ed drains the body by REMOVING the hose. The 9th Ed just cracked the high-side bleed. Removing it drains the body properly and is the only way to see the inlet open all the way.',
+    {flag:'9th ≠ 10th'}),
+  S('field.drainBody','Drain all the water from the body','sequence',''),
+  S('rec.airFull','Record whether the air inlet opened FULLY','reading',
+    'A separate Yes/No box on the form. Skipping it is a paperwork error.'),
+  S('nv.highBleed.close','Close the high-side bleed','sequence',''),
+  S('tc2.close','Close test cock #2','sequence',''),
+  S('sov1.open','Open shutoff #1 to repressurise','sequence',''),
+  S('tool.bleed@tc1','Attach the bleed valve tool to test cock #1','hookup','Now the check valve test.'),
+  S('hose.high@tc1','Attach the HIGH hose to test cock #1','hookup','Upstream of the check.'),
+  S('tc1.open','Open test cock #1','sequence',''),
+  S('nv.highBleed.open','Open the high-side bleed to purge','bleed',''),
+  S('nv.highBleed.close','Close the high-side bleed','sequence',''),
+  S('field.elevation','Hold the gauge at the proper elevation','elevation','',{flag:'9th ≠ 10th'}),
+  S('sov1.close','Close shutoff #1','sequence',''),
+  S('tc2.openSlow','SLOWLY open test cock #2','speed',''),
+  S('rec.ckv','When water stops flowing from test cock #2, record the check valve','reading','1.0 psid minimum.'),
+  ANY([S('tc1.close','Close test cock #1','sequence',''),S('tc2.close','Close test cock #2','sequence','')],
+      'Close both test cocks'),
+  S('field.removeKit','Remove the hose and fittings','sequence',''),
+  ...RESTORE_BOTH,
+  S('canopy.replace','Replace the air inlet canopy','restore','Do not walk away without it.')];
+
+/* ============ SVB — CHECK VALVE FIRST. This is the reversal. ============ */
+const SVB=[...PRELIM,
+  S('canopy.remove','Remove the air inlet canopy','prep',''),
+  ANY([S('tc1.flush','Flush the test cock','sequence',''),S('vent.flush','Flush the vent valve','sequence','')],
+      'Flush the test cock and the vent valve — any order'),
+  S('tool.bleed@tc1','Attach the bleed valve tool to the test cock','hookup',
+    '10th Ed installs it at the start.',{flag:'9th ≠ 10th'}),
+  S('hose.high@tc1','Attach the HIGH hose to the test cock','hookup',''),
+  S('tc1.open','Open the test cock','sequence',''),
+  S('nv.highBleed.open','Open the high-side bleed to purge the hose and gauge','bleed',''),
+  S('nv.highBleed.close','Close the high-side bleed','sequence',''),
+  S('sov2.close','Close shutoff #2','sequence',''),
+  S('field.elevation','Hold the gauge at the proper elevation — and KEEP it there','elevation',
+    'Level with the vent valve, and it stays there for the whole test. Not just this step.',{flag:'9th ≠ 10th'}),
+  S('sov1.close','Close shutoff #1','sequence',''),
+  S('vent.openSlow','SLOWLY open and remove the vent valve screw','speed',
+    'On an SVB the 10th Ed tests the CHECK VALVE FIRST and the air inlet second — the reverse of the 9th Ed, and the reverse of a PVB. This asymmetry is the single most commonly blown ordering change in the manual.',
+    {flag:'9th ≠ 10th'}),
+  S('rec.ckv','When the gauge settles, record the check valve','reading',
+    '1.0 psid minimum. If the air inlet opens before the check valve holding point, record that opening point too.'),
+  S('field.elevation','Keep holding the gauge at the proper elevation','elevation','Still required going into the air inlet test.'),
+  S('nv.highBleed.openSlow','SLOWLY open the high-side bleed — watch the needle AND the air inlet','speed',''),
+  S('rec.airOpen','Record the air inlet opening point','reading','1.0 psid or more.'),
+  S('hose.high.remove','Remove the high hose and bleed tool from the test cock','sequence',
+    '10th Ed removes the hose to drain the body. The 9th Ed opened the high-side bleed instead.',{flag:'9th ≠ 10th'}),
+  S('field.drainBody','Drain all the water from the body','sequence',''),
+  S('rec.airFull','Record whether the air inlet opened FULLY','reading','Separate graded field.'),
+  S('tc1.close','Close the test cock','sequence',''),
+  S('vent.close','Insert and close the vent valve screw','sequence',''),
+  S('field.removeKit','Remove the hose and fittings','sequence',''),
+  ...RESTORE_BOTH,
+  S('canopy.replace','Replace the air inlet canopy','restore','')];
+
+const PROC={rp:{five:RP5,three:RP3},dc:{five:DC,three:DC},
+            pvb:{five:PVB,three:PVB},svb:{five:SVB,three:SVB}};
+
+const SOURCES=[
+  'A.A.C. R18-4-215 — Arizona rule. Incorporates the USC manual <b>9th Edition</b> and says "no future editions." Names CA-NV AWWA and the ASETT Center. <i>Verified against the Secretary of State text.</i>',
+  'ADEQ approved certifying authorities: <b>CA-NV Section AWWA, ABPA, ASSE (with IAPMO), All American Backflow Prevention</b> (Tucson). ASETT is named in the rule but is <i>not</i> on ADEQ\'s current list. <i>Verified on azdeq.gov, revised Feb 2026.</i>',
+  'ABPA Tester Certification Program Handbook, 9-1-23 — four assemblies, one-hour guideline, the two-strike error rule, 70% written, 3-year certification. ABPA grades to <b>ABPA 1.1.11 = USC 10th Edition</b>. <i>Verified.</i>',
+  'ASSE Proctor Guide, 3/2017 — four assemblies, <b>hard 1.5-hour limit for all four</b>, one retry per assembly, 24-hour wait before a retest, three failures means repeating the 40-hour class. <i>Verified.</i>',
+  'USC 9th-vs-10th comparison sheet (FCCCHR) — the source for every step flagged <span class="chip warn">9th &ne; 10th</span> here. <i>Verified.</i>',
+  'Numeric thresholds cross-checked three ways: the USC comparison sheet, Mid-West Instrument kit bulletins, and AWWA M14 Tables B-2 through B-4. <i>Verified.</i>',
+  'Keystroke-level valve sequences come from Mid-West Instrument bulletins and a published 5-valve procedure sheet, which match the USC step structure. <i>Manufacturer / training-provider sources, not the standard itself.</i>',
+  '<b>Jurisdiction split:</b> Phoenix\'s guideline still cites the <b>9th</b> Edition; Mesa\'s tester application requires the <b>10th</b>. Ask whoever holds your test report which one they want.',
+  '<b>Not verified:</b> the ±0.2 psid gauge tolerance often quoted in training. It is absent from the Arizona rule, from ADEQ, and from all ten purveyor documents checked. Annual calibration <i>is</i> required by Phoenix, Mesa, Tucson, Scottsdale and Glendale.',
+  '<b>Not modelled yet:</b> the leaking-shutoff diagnostic branches — the RP test-cock-#1-to-#4 bypass hose, and DC bleed-valve compensation. Both are real exam conditions. Learn them from your manual; this trainer does not yet grade them.'
+];
+
+const $=s=>document.querySelector(s), el=(t,c,h)=>{const e=document.createElement(t);
+  if(c)e.className=c; if(h!=null)e.innerHTML=h; return e;};
+const TOL=0.3;              // trainer's own read tolerance — see Sources
+const TARGET=15*60;         // 15 min/assembly ≈ ABPA's 1-hour guideline for four
+
+const G={asm:'rp',kit:'five',scn:'ok',mode:'learn',steps:[],idx:0,left:null,
+  errs:[],struck:false,failed:false,recs:{},t0:0,tick:null,over:false,
+  sel:null,rig:null,ended:false};
+
+function freshRig(){
+  const nv={}; KITS[G.kit].valves.forEach(v=>nv[v]=0);
+  return {tc:{1:0,2:0,3:0,4:0},sov:{1:1,2:1},nv,
+    hose:{high:null,low:null,bypass:null,bleed:null,sight:null},
+    loose:{},canopy:1,vent:1,relief:0,drained:0};
+}
+
+/* ---------- stats ---------- */
+const SKEY='bfsim.stats.v1';
+const readStats=()=>{try{return JSON.parse(localStorage.getItem(SKEY))||{cats:{},runs:[]}}
+  catch(e){return{cats:{},runs:[]}}};
+function saveRun(r){const s=readStats();
+  r.errs.forEach(e=>s.cats[e.cat]=(s.cats[e.cat]||0)+1);
+  s.runs.push({a:r.asm,m:r.mode,p:r.pass,e:r.errs.length,s:r.secs});
+  if(s.runs.length>60)s.runs=s.runs.slice(-60);
+  try{localStorage.setItem(SKEY,JSON.stringify(s))}catch(e){}}
+
+/* ---------- procedure position ---------- */
+const item=()=>G.steps[G.idx];
+function expected(){
+  const it=item(); if(!it)return[];
+  return it.anyOrder?G.left.map(i=>it.anyOrder[i].d):[it.d];
+}
+function curStep(){
+  const it=item(); if(!it)return null;
+  return it.anyOrder?it.anyOrder[G.left[0]]:it;
+}
+function stepText(){
+  const it=item(); if(!it)return null;
+  if(!it.anyOrder)return{say:it.say,why:it.why,cat:it.cat,flag:it.flag};
+  return{say:it.say+' — '+G.left.length+' left',
+    why:G.left.map(i=>'• '+it.anyOrder[i].say).join('<br>'),cat:'sequence'};
+}
+function enterItem(){const it=item();
+  if(it&&it.anyOrder)G.left=it.anyOrder.map((_,i)=>i); else G.left=null;}
+function advance(key){
+  const it=item();
+  G.struck=false;                    // a correct action re-arms error detection
+  if(it.anyOrder){
+    const k=G.left.findIndex(i=>it.anyOrder[i].d===key);
+    G.left.splice(k,1);
+    if(G.left.length)return;
+  }
+  G.idx++;
+  if(G.idx<G.steps.length)enterItem(); else finish();
+}
+
+/* ---------- physical effect (always applied, right or wrong) ---------- */
+function apply(key){
+  const r=G.rig, m=key.match(/^tc(\d)\.(\w+)/);
+  if(m){const n=m[1],v=m[2];
+    if(v==='flush'){r.tc[n]=0;return}
+    r.tc[n]=v.startsWith('open')?1:0; return;}
+  const s=key.match(/^sov(\d)\.(\w+)/);
+  if(s){r.sov[s[1]]=s[2].startsWith('open')?1:0;return}
+  const v=key.match(/^nv\.(\w+)\.(\w+)/);
+  if(v){r.nv[v[1]]=v[2].startsWith('open')?1:0;return}
+  const h=key.match(/^hose\.(\w+)(?:\.(\w+))?@(\w+)/);
+  if(h){r.hose[h[1]]=h[3]; r.loose[h[1]]=(h[2]==='loose'||h[2]==='loosen'); return}
+  const t=key.match(/^tool\.bleed@(\w+)/); if(t){r.hose.bleed=t[1];return}
+  const g=key.match(/^tube\.sight@(\w+)/); if(g){r.hose.sight=g[1];return}
+  if(key==='hose.bypass.tighten')r.loose.bypass=false;
+  if(key==='hose.low.tighten')r.loose.low=false;
+  if(key==='hose.high.remove'){r.hose.high=null;r.hose.bleed=null}
+  if(key==='hose.bypass.remove')r.hose.bypass=null;
+  if(key==='field.removeKit')r.hose={high:null,low:null,bypass:null,bleed:null,sight:null};
+  if(key==='canopy.remove')r.canopy=0;
+  if(key==='canopy.replace')r.canopy=1;
+  if(key==='vent.openSlow')r.vent=0;
+  if(key==='vent.close')r.vent=1;
+  if(key==='field.drainBody')r.drained=1;
+}
+
+/* ---------- the one entry point for everything the user does ---------- */
+function act(key,label){
+  if(G.ended)return;
+  const exp=expected();
+  if(key.startsWith('rec.')){
+    if(exp.includes(key))return openRec(key.slice(4));
+    // recording out of turn is still an error
+    return miss(key,label||'Recorded a result');
+  }
+  apply(key);
+  if(exp.includes(key)){
+    log(label||key,'good'); advance(key); paint();
+  } else { miss(key,label); paint(); }
+}
+function miss(key,label){
+  const want=curStep();
+  if(!G.struck){
+    G.struck=true;
+    G.errs.push({cat:want?want.cat:'sequence',did:label||key,
+      want:want?want.say:'—',at:G.idx});
+    if(G.errs.length>=2)G.failed=true;
+  }
+  if(G.mode==='exam')log(label||key,'');
+  else log((label||key)+' — not the next step',(''));
+  if(G.mode!=='exam')flash(want);
+}
+
+/* ---------- recording a result ---------- */
+function gradeRec(id,val,vi){
+  const truth=SCN[G.asm][G.scn].r[id], def=RECS[id];
+  let bad=null;
+  if(truth[1]!==vi)bad='verdict';
+  else if(def.val&&truth[0]!=null&&Math.abs(val-truth[0])>TOL)bad='value';
+  G.recs[id]={val:def.val?val:null,vi,ok:!bad,truth};
+  if(bad){
+    G.errs.push({cat:'reading',did:bad==='verdict'?'Wrong call on '+def.q:
+      'Misread '+def.q+' as '+val.toFixed(1)+' psid',
+      want:(def.val&&truth[0]!=null?truth[0].toFixed(1)+' psid, ':'')+def.verdicts[truth[1]],at:G.idx});
+    if(G.errs.length>=2)G.failed=true;
+    log('Recorded '+def.q,'');
+  } else log('Recorded '+def.q,'good');
+  advance('rec.'+id); paint();
+}
+function gaugeNow(){
+  const it=curStep();
+  if(it&&it.d.startsWith('rec.')){
+    const t=SCN[G.asm][G.scn].r[it.d.slice(4)];
+    if(t&&t[0]!=null)return t[0];
+  }
+  const rr=SCN[G.asm][G.scn].r, r=G.rig;
+  if(G.recs.apparent&&G.recs.apparent.val!=null)return G.recs.apparent.val;
+  if(r.sov[2]===0&&r.hose.high)return rr.apparent?rr.apparent[0]:8.0;
+  return 0;
+}
+
+/* ---------- clock ---------- */
+function startClock(){G.t0=Date.now();
+  G.tick=setInterval(()=>{const s=secs();
+    $('#timer').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+    $('#timer').classList.toggle('over',s>TARGET);},1000);}
+const secs=()=>Math.floor((Date.now()-G.t0)/1000);
+
+/* ---------- end of run ---------- */
+function scenarioPasses(){
+  const r=SCN[G.asm][G.scn].r;
+  return Object.keys(r).every(k=>r[k][1]===0);
+}
+function finish(){
+  if(G.ended)return; G.ended=true; clearInterval(G.tick);
+  const run={asm:G.asm,mode:G.mode,errs:G.errs,secs:secs(),
+    pass:G.errs.length===0,assemblyPasses:scenarioPasses()};
+  saveRun(run); showResult(run);
+}
+
+/* ===================== SCENE =====================
+   One SVG holds the whole rig: assembly on the pipe at y=250, the test kit
+   body at bottom-right, a tool tray at bottom-left, and the hoses drawn as
+   catenary curves from the kit ports. Hose ends carry a draggable nub. */
+const Y=250, MF='ui-monospace,monospace';
+const KX=470, KY=398, KW=330, KH=240;
+const SHORT={highBleed:'HI BLEED',lowBleed:'LO BLEED',bypass:'BYPASS',
+  highControl:'HI CTRL',lowControl:'LO CTRL'};
+const DANGLE={high:{x:600,y:330},low:{x:648,y:344},bypass:{x:556,y:316}};
+const TRAY={x:70,y:490};
+
+function hoseAt(id){const r=G.rig,out=[];
+  for(const k in r.hose)if(r.hose[k]===id)out.push(k); return out;}
+/* Port layout is a kit-model property — Mid-West puts high in the middle on a
+   845-5 but on the left on a 845-3. Do not hard-code left=high. */
+function kitPorts(){
+  return G.kit==='five'
+    ? {bypass:{x:KX+186,y:KY},high:{x:KX+226,y:KY},low:{x:KX+266,y:KY}}
+    : {high:{x:KX+186,y:KY},low:{x:KX+226,y:KY},bypass:{x:KX+266,y:KY}};
+}
+function tcPos(n){const p=ASM[G.asm].parts.find(q=>q.t==='tc'&&q.id==='tc'+n);
+  return p?{x:p.x,y:Y-92}:null}
+function toolsNeeded(){return G.asm==='dc'?['bleed','sight']:
+  (G.asm==='pvb'||G.asm==='svb')?['bleed']:[]}
+function hosesNeeded(){return G.asm==='rp'?['high','low','bypass']:['high']}
+function trayItems(){
+  const out=toolsNeeded().filter(t=>!G.rig.hose[t]);
+  if(G.asm==='rp'&&G.kit==='three'&&!G.rig.hose.bypass)out.push('coil');
+  return out;
+}
+function dropTargets(item){
+  const t=[];
+  ASM[G.asm].cocks.forEach(n=>{const p=tcPos(n);t.push({id:'tc'+n,x:p.x,y:p.y})});
+  if(item==='bypass'&&G.asm==='rp'&&G.kit==='three'&&!G.rig.hose.bypass){
+    const p=kitPorts().bypass;t.push({id:'kit',x:p.x,y:p.y-18});}
+  return t;
+}
+function hosePath(x1,y1,x2,y2){
+  return `M${x1} ${y1} C ${x1} ${y1-120}, ${x2} ${y2+110}, ${x2} ${y2}`;
+}
+function defs(){return `<defs>
+ <linearGradient id="gBrass" x1="0" y1="0" x2="0" y2="1">
+  <stop offset="0" stop-color="#fff" stop-opacity=".28"/>
+  <stop offset=".5" stop-color="#fff" stop-opacity="0"/>
+  <stop offset="1" stop-color="#000" stop-opacity=".14"/>
+ </linearGradient>
+ <linearGradient id="gPipe" x1="0" y1="0" x2="0" y2="1">
+  <stop offset="0" stop-color="#000" stop-opacity=".18"/>
+  <stop offset=".45" stop-color="#fff" stop-opacity=".16"/>
+  <stop offset="1" stop-color="#000" stop-opacity=".22"/>
+ </linearGradient>
+ <linearGradient id="gSteel" x1="0" y1="0" x2="0" y2="1">
+  <stop offset="0" stop-color="var(--surface)"/>
+  <stop offset="1" stop-color="var(--sunk)"/>
+ </linearGradient>
+ <filter id="ds" x="-20%" y="-20%" width="140%" height="140%">
+  <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity=".18"/>
+ </filter>
+</defs>`}
+
+function drawTC(p,n){
+  const x=p.x,open=G.rig.tc[n];
+  let s=`<g class="hot" data-comp="tc${n}" role="button" tabindex="0"
+     aria-label="Test cock ${n}, ${open?'open':'closed'}">`;
+  s+=`<rect class="hit" x="${x-30}" y="${Y-88}" width="60" height="104" fill="transparent" stroke="transparent"/>`;
+  s+=`<rect x="${x-4}" y="${Y-30}" width="8" height="12" fill="var(--brass)"/>`;
+  s+=`<rect x="${x-8}" y="${Y-37}" width="16" height="7" rx="1.5" fill="var(--brass)"/>`;
+  s+=`<rect x="${x-5}" y="${Y-48}" width="10" height="12" fill="var(--brass)"/>`;
+  s+=`<circle cx="${x}" cy="${Y-52}" r="9.5" fill="var(--brass)"/>`;
+  s+=`<circle cx="${x}" cy="${Y-52}" r="9.5" fill="url(#gBrass)"/>`;
+  s+=open?`<rect x="${x-3}" y="${Y-78}" width="6" height="28" rx="2.5" fill="var(--pass)"/>`
+         :`<rect x="${x-17}" y="${Y-55}" width="34" height="6" rx="2.5" fill="var(--ink)" opacity=".55"/>`;
+  s+=`<text x="${x}" y="${Y+30}" text-anchor="middle" font-size="13" font-weight="600"
+     font-family="${MF}" fill="var(--ink)">${n}</text></g>`;
+  return s;
+}
+function drawSOV(p){
+  const x=p.x,open=G.rig.sov[p.id==='sov1'?1:2],c=open?'var(--brass)':'var(--muted)';
+  let s=`<g class="hot" data-comp="${p.id}" role="button" tabindex="0"
+     aria-label="${p.lab}, ${open?'open':'closed'}">`;
+  s+=`<rect class="hit" x="${x-30}" y="${Y-60}" width="60" height="100" fill="transparent" stroke="transparent"/>`;
+  s+=`<path d="M${x-18} ${Y-20} L${x-18} ${Y+20} L${x} ${Y} Z" fill="${c}"/>`;
+  s+=`<path d="M${x+18} ${Y-20} L${x+18} ${Y+20} L${x} ${Y} Z" fill="${c}"/>`;
+  s+=`<line x1="${x}" y1="${Y}" x2="${x}" y2="${Y-38}" stroke="${c}" stroke-width="4"/>`;
+  s+=`<ellipse cx="${x}" cy="${Y-42}" rx="17" ry="5.5" fill="none" stroke="${c}" stroke-width="4"/>`;
+  s+=`<text x="${x}" y="${Y+46}" text-anchor="middle" font-size="10.5"
+     font-family="${MF}" fill="var(--muted)">${p.lab.toUpperCase()}</text>`;
+  s+=`<text x="${x}" y="${Y+60}" text-anchor="middle" font-size="10.5"
+     font-family="${MF}" fill="${open?'var(--pass)':'var(--fail)'}">${open?'OPEN':'CLOSED'}</text></g>`;
+  return s;
+}
+function reliefDripping(){
+  if(G.asm==='rp'&&G.scn==='ck1'&&!G.recs.ck1)return true;
+  const st=curStep();
+  return !!(st&&st.d==='rec.reliefOpen'&&SCN[G.asm][G.scn].r.reliefOpen[1]===0);
+}
+function drawStage(){
+  const a=ASM[G.asm],r=G.rig; let s=defs();
+  s+=`<rect x="20" y="${Y-11}" width="860" height="22" rx="5" fill="var(--line)"/>`;
+  s+=`<rect x="20" y="${Y-11}" width="860" height="22" rx="5" fill="url(#gPipe)"/>`;
+  s+=`<text x="24" y="${Y-24}" font-size="10.5" font-family="${MF}" fill="var(--muted)">SUPPLY &#8594;</text>`;
+  a.parts.filter(p=>p.t==='body').forEach(p=>{
+    s+=`<g filter="url(#ds)"><rect x="${p.x0}" y="${Y-28}" width="${p.x1-p.x0}" height="56" rx="10"
+       fill="var(--brass-soft)" stroke="var(--brass)" stroke-width="2"/></g>`;
+    s+=`<rect x="${p.x0}" y="${Y-28}" width="${p.x1-p.x0}" height="56" rx="10" fill="url(#gBrass)"/>`;});
+  a.parts.forEach(p=>{
+    if(p.t==='ck'){
+      s+=`<circle cx="${p.x}" cy="${Y}" r="17" fill="var(--surface)" stroke="var(--brass)" stroke-width="2"/>`;
+      s+=`<path d="M${p.x-6} ${Y-8} L${p.x+8} ${Y} L${p.x-6} ${Y+8} Z" fill="var(--brass)"/>`;
+      s+=`<text x="${p.x}" y="${Y+40}" text-anchor="middle" font-size="10.5"
+         font-family="${MF}" fill="var(--muted)">${p.lab.toUpperCase()}</text>`;}
+    if(p.t==='relief'){
+      s+=`<rect x="${p.x-32}" y="${Y+26}" width="64" height="44" rx="6"
+         fill="var(--brass-soft)" stroke="var(--brass)" stroke-width="2"/>`;
+      s+=`<rect x="${p.x-32}" y="${Y+26}" width="64" height="44" rx="6" fill="url(#gBrass)"/>`;
+      s+=`<rect x="${p.x-16}" y="${Y+70}" width="32" height="12" fill="var(--brass)"/>`;
+      s+=`<path d="M${p.x-30} ${Y+104} L${p.x+30} ${Y+104} L${p.x+18} ${Y+130} L${p.x-18} ${Y+130} Z"
+         fill="none" stroke="var(--line)" stroke-width="2.5"/>`;
+      if(reliefDripping())[1,2,3].forEach(i=>{
+        s+=`<circle class="drip d${i}" cx="${p.x-14+i*8}" cy="${Y+86}" r="3.2" fill="var(--water)"/>`;});
+      s+=`<text x="${p.x}" y="${Y+96}" text-anchor="middle" font-size="10.5"
+         font-family="${MF}" fill="var(--muted)">RELIEF</text>`;}
+    if(p.t==='air'){
+      const full=SCN[G.asm][G.scn].r.airFull;
+      s+=`<path d="M${p.x-28} ${Y-26} L${p.x-28} ${Y-54} A28 28 0 0 1 ${p.x+28} ${Y-54} L${p.x+28} ${Y-26} Z"
+         fill="var(--brass-soft)" stroke="var(--brass)" stroke-width="2"/>`;
+      if(r.canopy){
+        s+=`<g class="hot" data-comp="canopy" role="button" tabindex="0" aria-label="Air inlet canopy, fitted">`;
+        s+=`<rect class="hit" x="${p.x-40}" y="${Y-108}" width="80" height="58" fill="transparent" stroke="transparent"/>`;
+        s+=`<path d="M${p.x-34} ${Y-58} A34 34 0 0 1 ${p.x+34} ${Y-58} Z" fill="var(--muted)"/>`;
+        s+=`<text x="${p.x}" y="${Y-100}" text-anchor="middle" font-size="10"
+           font-family="${MF}" fill="var(--muted)">CANOPY ON</text></g>`;
+      }else{
+        const drained=r.drained, stuck=full&&full[1]===1;
+        const py=drained?(stuck?Y-76:Y-82):Y-64;
+        s+=`<g class="hot" data-comp="canopy" role="button" tabindex="0" aria-label="Air inlet canopy, removed">`;
+        s+=`<rect class="hit" x="${p.x-40}" y="${Y-114}" width="80" height="64" fill="transparent" stroke="transparent"/>`;
+        s+=`<text x="${p.x}" y="${Y-104}" text-anchor="middle" font-size="10"
+           font-family="${MF}" fill="var(--pass)">CANOPY OFF</text></g>`;
+        s+=`<rect x="${p.x-13}" y="${py}" width="26" height="16" rx="3" fill="var(--water)"
+           ${drained&&stuck?`transform="rotate(9 ${p.x} ${py+8})"`:''}/>`;
+        if(drained)s+=`<text x="${p.x}" y="${Y-90}" text-anchor="middle" font-size="9"
+           font-family="${MF}" fill="${stuck?'var(--warn)':'var(--pass)'}">${stuck?'BINDS PART-WAY':'FULLY OPEN'}</text>`;
+      }
+      s+=`<text x="${p.x}" y="${Y+40}" text-anchor="middle" font-size="10.5"
+         font-family="${MF}" fill="var(--muted)">AIR INLET</text>`;}
+    if(p.t==='vent'){
+      s+=`<g class="hot" data-comp="vent" role="button" tabindex="0"
+         aria-label="Vent valve screw, ${r.vent?'closed':'removed'}">`;
+      s+=`<rect class="hit" x="${p.x-24}" y="${Y-74}" width="48" height="64" fill="transparent" stroke="transparent"/>`;
+      s+=`<rect x="${p.x-9}" y="${Y-44}" width="18" height="20" rx="2"
+         fill="${r.vent?'var(--brass)':'none'}" stroke="var(--brass)" stroke-width="2"/>`;
+      s+=`<text x="${p.x}" y="${Y-52}" text-anchor="middle" font-size="10"
+         font-family="${MF}" fill="${r.vent?'var(--muted)':'var(--pass)'}">${r.vent?'VENT':'OPEN'}</text></g>`;}
+    if(p.t==='tc')s+=drawTC(p,p.id.slice(2));
+    if(p.t==='sov')s+=drawSOV(p);
+  });
+  s+=kitSVG();
+  s+=traySVG();
+  s+=hosesSVG();
+  $('#stage').innerHTML=s;
+}
+
+/* ===================== TEST KIT, TRAY & HOSES ===================== */
+function gaugeFace(cx,cy,R){
+  const max=15,v=Math.max(0,Math.min(max,gaugeNow()));
+  const ang=d=>(135+(d/max)*270)*Math.PI/180;
+  const pt=(d,rr)=>[cx+rr*Math.cos(ang(d)),cy+rr*Math.sin(ang(d))];
+  let s=`<circle cx="${cx}" cy="${cy}" r="${R+9}" fill="var(--sunk)" stroke="var(--line)" stroke-width="2"/>`;
+  s+=`<circle cx="${cx}" cy="${cy}" r="${R}" fill="var(--surface)"/>`;
+  for(let d=0;d<=max;d++){const maj=d%5===0,[x1,y1]=pt(d,R-(maj?14:8)),[x2,y2]=pt(d,R-2);
+    s+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--muted)" stroke-width="${maj?2:1}"/>`;
+    if(maj){const[tx,ty]=pt(d,R-27);
+      s+=`<text x="${tx}" y="${ty+4}" text-anchor="middle" font-size="12"
+         font-family="${MF}" fill="var(--ink)">${d}</text>`;}}
+  const[nx,ny]=pt(v,R-18);
+  s+=`<line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="var(--fail)" stroke-width="3.5"
+     stroke-linecap="round"/>`;
+  s+=`<circle cx="${cx}" cy="${cy}" r="6.5" fill="var(--ink)"/>`;
+  s+=`<text x="${cx}" y="${cy+40}" text-anchor="middle" font-size="10.5"
+     font-family="${MF}" fill="var(--muted)">PSID</text>`;
+  s+=`<text x="${cx}" y="${cy+62}" text-anchor="middle" font-size="18" font-weight="600"
+     font-family="${MF}" fill="var(--ink)">${v.toFixed(1)}</text>`;
+  return s;
+}
+function knob(v,x,y){
+  const open=G.rig.nv[v], c=VALVES[v].c;
+  return `<g class="hot" data-valve="${v}" role="button" tabindex="0"
+    aria-label="${VALVES[v].n} needle valve, ${open?'open':'closed'}">
+  <rect class="hit" x="${x-32}" y="${y-36}" width="64" height="76" fill="transparent" stroke="transparent"/>
+  <text x="${x}" y="${y-25}" text-anchor="middle" font-size="9" font-family="${MF}"
+    fill="var(--muted)">${SHORT[v]}</text>
+  <circle cx="${x}" cy="${y}" r="17" fill="var(--surface)" stroke="${c}" stroke-width="4"/>
+  <circle cx="${x}" cy="${y}" r="6.5" fill="${open?'var(--pass)':'var(--line)'}"/>
+  <line x1="${x-10}" y1="${y}" x2="${x+10}" y2="${y}" stroke="${c}" stroke-width="3"
+    transform="rotate(${open?90:0} ${x} ${y})"/>
+  <text x="${x}" y="${y+32}" text-anchor="middle" font-size="8.5" font-family="${MF}"
+    fill="${open?'var(--pass)':'var(--muted)'}">${open?'OPEN':'CLOSED'}</text></g>`;
+}
+function nub(item,x,y){
+  let s=`<circle cx="${x}" cy="${y}" r="11" fill="${HOSES[item].c}" stroke="var(--surface)"
+    stroke-width="2.5" data-nub="${item}" style="touch-action:none;cursor:grab"/>`;
+  s+=`<circle cx="${x}" cy="${y}" r="3.5" fill="var(--surface)" data-nub="${item}"
+    style="touch-action:none;cursor:grab"/>`;
+  if(G.sel===item)s+=`<circle cx="${x}" cy="${y}" r="17" fill="none" stroke="var(--water)"
+    stroke-width="2.5" stroke-dasharray="5 4"/>`;
+  return s;
+}
+function kitSVG(){
+  const P=kitPorts(); let s='';
+  s+=`<g filter="url(#ds)"><rect x="${KX}" y="${KY}" width="${KW}" height="${KH}" rx="16"
+     fill="url(#gSteel)" stroke="var(--line)" stroke-width="1.5"/></g>`;
+  s+=`<text x="${KX+16}" y="${KY+24}" font-size="9.5" letter-spacing="1"
+     font-family="${MF}" fill="var(--muted)">${KITS[G.kit].name.toUpperCase()} GAUGE</text>`;
+  for(const k in P){const p=P[k];
+    s+=`<rect x="${p.x-8}" y="${p.y-16}" width="16" height="20" rx="3" fill="var(--brass)"/>`;
+    s+=`<rect x="${p.x-8}" y="${p.y-16}" width="16" height="20" rx="3" fill="url(#gBrass)"/>`;
+    s+=`<text x="${p.x}" y="${p.y+14}" text-anchor="middle" font-size="7.5"
+       font-family="${MF}" fill="var(--muted)">${k.toUpperCase()}</text>`;}
+  if(G.asm==='rp'&&G.kit==='three'&&!G.rig.hose.bypass){
+    const p=P.bypass;
+    s+=`<g class="hot" data-comp="kitport" role="button" tabindex="0" aria-label="Kit bypass port">
+      <rect class="hit" x="${p.x-20}" y="${p.y-44}" width="40" height="52"
+        fill="transparent" stroke="transparent"/></g>`;}
+  s+=gaugeFace(KX+95,KY+126,80);
+  const KN=G.kit==='five'
+    ?[['highBleed',KX+205,KY+78],['lowBleed',KX+285,KY+78],['bypass',KX+245,KY+138],
+      ['highControl',KX+205,KY+198],['lowControl',KX+285,KY+198]]
+    :[['highBleed',KX+205,KY+100],['lowBleed',KX+285,KY+100],['bypass',KX+245,KY+172]];
+  KN.forEach(k=>s+=knob(k[0],k[1],k[2]));
+  return s;
+}
+function traySVG(){
+  const items=trayItems();
+  if(!items.length)return '';
+  let s=`<text x="${TRAY.x}" y="${TRAY.y-28}" font-size="9.5" letter-spacing="1"
+    font-family="${MF}" fill="var(--muted)">TOOL TRAY</text>`;
+  items.forEach((it,i)=>{
+    const x=TRAY.x+i*120+30, y=TRAY.y+22;
+    if(it==='bleed'){
+      s+=`<rect x="${x-5}" y="${y-18}" width="10" height="30" rx="2" fill="var(--brass)"/>`;
+      s+=`<rect x="${x-16}" y="${y-8}" width="32" height="9" rx="2" fill="var(--brass)"/>`;
+      s+=nub('bleed',x,y-24);
+      s+=`<text x="${x}" y="${y+30}" text-anchor="middle" font-size="8.5"
+         font-family="${MF}" fill="var(--muted)">BLEED VALVE</text>`;
+    }else if(it==='sight'){
+      s+=`<rect x="${x-6}" y="${y-24}" width="12" height="44" rx="5" fill="none"
+         stroke="${HOSES.sight.c}" stroke-width="2.5"/>`;
+      s+=nub('sight',x,y-32);
+      s+=`<text x="${x}" y="${y+30}" text-anchor="middle" font-size="8.5"
+         font-family="${MF}" fill="var(--muted)">SIGHT TUBE</text>`;
+    }else{
+      s+=`<circle cx="${x}" cy="${y-6}" r="15" fill="none" stroke="${HOSES.bypass.c}"
+         stroke-width="5" opacity=".9"/>`;
+      s+=`<circle cx="${x}" cy="${y-6}" r="8" fill="none" stroke="${HOSES.bypass.c}"
+         stroke-width="5" opacity=".9"/>`;
+      s+=nub('bypass',x+15,y-17);
+      s+=`<text x="${x}" y="${y+30}" text-anchor="middle" font-size="8.5"
+         font-family="${MF}" fill="var(--muted)">BYPASS HOSE</text>`;
+    }
+  });
+  return s;
+}
+function hosesSVG(){
+  const P=kitPorts(), r=G.rig; let s='';
+  hosesNeeded().forEach(h=>{
+    const port=P[h], start={x:port.x,y:port.y-14};
+    const att=r.hose[h]; let end=null;
+    if(G.drag&&G.drag.item===h)end={x:G.drag.x,y:G.drag.y};
+    else if(att&&att!=='kit')end=tcPos(att.slice(2));
+    else if(att==='kit')end=DANGLE[h];
+    else if(h==='bypass'&&G.asm==='rp'&&G.kit==='three')return; // still coiled in the tray
+    else end=DANGLE[h];
+    if(!end)return;
+    s+=`<path d="${hosePath(start.x,start.y,end.x,end.y)}" fill="none"
+       stroke="${HOSES[h].c}" stroke-width="6" stroke-linecap="round" opacity=".85"/>`;
+    s+=nub(h,end.x,end.y);
+    if(att&&att!=='kit'&&r.loose[h])
+      s+=`<text x="${end.x+16}" y="${end.y-8}" font-size="10" font-family="${MF}"
+         fill="var(--warn)">LOOSE</text>`;
+  });
+  toolsNeeded().forEach(t=>{
+    if(G.drag&&G.drag.item===t){s+=nub(t,G.drag.x,G.drag.y);return}
+    const att=r.hose[t]; if(!att)return; // in the tray
+    const p=tcPos(att.slice(2)); if(!p)return;
+    if(t==='bleed'){
+      s+=`<rect x="${p.x+12}" y="${p.y+6}" width="8" height="24" rx="2" fill="var(--brass)"/>`;
+      s+=`<rect x="${p.x+4}" y="${p.y+14}" width="24" height="8" rx="2" fill="var(--brass)"/>`;
+      s+=nub('bleed',p.x+16,p.y)
+    }else{
+      s+=`<rect x="${p.x+12}" y="${p.y-2}" width="12" height="58" rx="5" fill="none"
+         stroke="${HOSES.sight.c}" stroke-width="2.5"/>`;
+      s+=`<rect x="${p.x+14.5}" y="${p.y+24}" width="7" height="29" fill="var(--water)" opacity=".8"/>`;
+      s+=nub('sight',p.x+18,p.y-8)
+    }
+  });
+  if(G.drag)dropTargets(G.drag.item).forEach(t=>{
+    s+=`<circle class="tgt" cx="${t.x}" cy="${t.y}" r="28" fill="none"
+       stroke="var(--water)" stroke-width="2.5" stroke-dasharray="6 5"/>`;});
+  return s;
+}
+function labelOf(id){return id==='kit'?'the kit port':'test cock #'+id.slice(2)}
+function dropOn(item,t,e){
+  if(G.rig.hose[item]===t.id)return;           // dropped back where it came from
+  if(item==='bleed')return act('tool.bleed@'+t.id,'Attached the bleed valve tool to '+labelOf(t.id));
+  if(item==='sight')return act('tube.sight@'+t.id,'Attached the sight tube to '+labelOf(t.id));
+  if(t.id==='kit')return act('hose.bypass@kit','Attached the bypass hose to the kit port');
+  if(item==='bypass'&&G.asm==='rp')
+    return openPop(e.clientX,e.clientY,'Bypass hose &#8594; '+labelOf(t.id),
+      [['Attach it tight',`hose.bypass@${t.id}`],['Attach it LOOSELY',`hose.bypass.loose@${t.id}`]]);
+  act(`hose.${item}@${t.id}`,'Attached the '+HOSES[item].n+' to '+labelOf(t.id));
+}
+function detachMaybe(item,e){
+  const at=G.rig.hose[item]; if(!at)return;
+  if(item==='high')openPop(e.clientX,e.clientY,'High hose',
+    [['Remove high hose &amp; bleed tool','hose.high.remove'],['Leave it attached','__cancel']]);
+  else if(item==='bypass')openPop(e.clientX,e.clientY,'Bypass hose',
+    [['Disconnect it','hose.bypass.remove'],['Leave it attached','__cancel']]);
+}
+const FIELD=[['field.notify','Notify the user'],['field.identify','Identify the assembly'],
+  ['field.inspect','Inspect the installation'],['field.observe','Observe for leakage'],
+  ['field.elevation','Hold gauge at proper elevation'],['field.drainBody','Drain the body'],
+  ['field.removeKit','Remove hoses &amp; fittings']];
+function drawField(){
+  $('#field-acts').innerHTML=FIELD.map(f=>
+    `<button class="btn ghost" data-field="${f[0]}" style="font-size:12.5px">${f[1]}</button>`).join('')
+    +`<button class="btn" data-rec="1" style="font-size:12.5px">Record a result&hellip;</button>`;
+}
+
+/* ===================== CONSOLE ===================== */
+function log(txt,cls){
+  const row=el('div','row '+(cls||'bad'));
+  const n=$('#log').children.length+1;
+  row.innerHTML=`<span class="k">${String(n).padStart(2,'0')}</span><span>${txt}</span>`;
+  $('#log').prepend(row);
+}
+function flash(want){
+  if(!want)return;
+  const b=$('#step-box'); b.style.transition='none'; b.style.opacity='.35';
+  setTimeout(()=>{b.style.transition='opacity .3s';b.style.opacity='1'},60);
+}
+function drawStep(){
+  const t=stepText(),b=$('#step-box');
+  if(!t){b.innerHTML='<p class="step-say">Test complete.</p>';return}
+  const n=`Step ${G.idx+1} of ${G.steps.length}`;
+  if(G.mode==='exam'&&!G.hintOpen){
+    b.innerHTML=`<div class="step-n">${n}</div>
+      <p class="hidden-step">No prompts in exam mode. Work the procedure.</p>`;
+  }else if(G.mode==='practice'&&!G.hintOpen){
+    b.innerHTML=`<div class="step-n">${n}</div>
+      <p class="hidden-step">Hidden — tap Hint if you're stuck.</p>`;
+  }else{
+    b.innerHTML=`<div class="step-n">${n}${t.flag?' &middot; <span class="chip warn">'+t.flag+'</span>':''}</div>
+      <p class="step-say">${t.say}</p>${t.why?'<p class="step-why">'+t.why+'</p>':''}
+      <div class="cite">Grades as: ${CATS[t.cat]||t.cat}</div>`;
+  }
+  $('#prog').style.width=(G.idx/G.steps.length*100).toFixed(1)+'%';
+}
+function drawStrikes(){
+  $('#strikes').innerHTML=[0,1].map(i=>
+    `<span class="strike ${G.errs.length>i?'on':''}"></span>`).join('');
+}
+function paint(){drawStage();drawStep();drawStrikes();}
+
+/* ===================== POPOVER MENUS ===================== */
+function closePop(){$('#pop-host').innerHTML=''}
+function menuFor(comp){
+  const out=[];
+  if(/^tc\d$/.test(comp)){
+    if(G.sel){const h=G.sel;
+      const key=h==='bleed'?`tool.bleed@${comp}`:h==='sight'?`tube.sight@${comp}`:`hose.${h}@${comp}`;
+      out.push(['Attach the '+HOSES[h].n,key]);
+      if(h==='bypass'||h==='low')out.push(['Attach it LOOSELY',`hose.${h}.loose@${comp}`]);}
+    hoseAt(comp).forEach(h=>{
+      if(h!=='bleed'&&h!=='sight'){
+        out.push(['Loosen the '+HOSES[h].n,`hose.${h}.loosen@${comp}`]);
+        out.push(['Tighten the '+HOSES[h].n,`hose.${h}.tighten`]);}
+      if(h==='high')out.push(['Remove high hose &amp; bleed tool','hose.high.remove']);
+      if(h==='bypass')out.push(['Disconnect the bypass hose','hose.bypass.remove']);});
+    out.push(['Open',comp+'.open'],['Open SLOWLY',comp+'.openSlow'],
+      ['Close',comp+'.close'],['Close SLOWLY',comp+'.closeSlow'],['Flush it',comp+'.flush']);
+  }else if(/^sov\d$/.test(comp)){
+    out.push(['Open',comp+'.open'],['Open SLOWLY',comp+'.openSlow'],['Close',comp+'.close']);
+  }else if(comp==='vent'){
+    out.push(['Flush the vent valve','vent.flush'],
+      ['SLOWLY open &amp; remove the screw','vent.openSlow'],
+      ['Insert &amp; close the screw','vent.close']);
+  }else if(comp==='canopy'){
+    out.push(['Remove the canopy','canopy.remove'],['Replace the canopy','canopy.replace']);
+  }
+  return out;
+}
+function openPop(x,y,title,rows){
+  closePop();
+  const p=el('div','pop');
+  p.innerHTML=`<div class="ttl lbl">${title}</div>`+
+    rows.map(r=>`<button data-key="${r[1]}">${r[0]}</button>`).join('');
+  p.style.left=Math.max(8,Math.min(x,window.innerWidth-210))+'px';
+  p.style.top=(y+window.scrollY+6)+'px';
+  $('#pop-host').appendChild(p);
+  p.addEventListener('click',e=>{const b=e.target.closest('button[data-key]');if(!b)return;
+    closePop(); const k=b.dataset.key;
+    if(k==='__cancel'){drawStage();return}
+    G.sel=null; act(k,b.textContent.trim());});
+}
+document.addEventListener('click',e=>{if(!e.target.closest('.pop'))closePop()},true);
+
+/* ===================== MODALS ===================== */
+function closeModal(){$('#modal-host').innerHTML=''}
+function modal(title,bodyHTML){
+  const s=el('div','scrim');
+  s.innerHTML=`<div class="modal"><div class="panel-h"><span class="lbl">${title}</span></div>
+    <div class="panel-b">${bodyHTML}</div></div>`;
+  $('#modal-host').innerHTML=''; $('#modal-host').appendChild(s); return s;
+}
+function pickRec(){
+  const ids=Object.keys(SCN[G.asm][G.scn].r);
+  const s=modal('Record a result',
+    `<p style="margin:0 0 12px;color:var(--muted);font-size:13.5px">
+      Recording the wrong result, or recording out of turn, is an error.</p>`+
+    ids.map(i=>`<button class="btn" data-rid="${i}"
+      style="display:block;width:100%;text-align:left;margin-bottom:7px">${RECS[i].q}</button>`).join('')+
+    `<button class="btn ghost" data-x="1" style="margin-top:6px">Cancel</button>`);
+  s.addEventListener('click',e=>{
+    if(e.target.dataset.x||e.target===s)return closeModal();
+    const b=e.target.closest('[data-rid]'); if(!b)return;
+    closeModal(); act('rec.'+b.dataset.rid,'Recorded '+RECS[b.dataset.rid].q);});
+}
+function openRec(id){
+  const d=RECS[id],t=SCN[G.asm][G.scn].r[id];
+  let shown=t[0];
+  if(shown==null){const rr=SCN[G.asm][G.scn].r;
+    shown=t[1]===1?(rr.reliefOpen?rr.reliefOpen[0]:0):(rr.apparent?rr.apparent[0]:0);}
+  const s=modal(d.q,
+    `<div class="readout"><span class="lbl">Gauge is reading</span>
+      <span class="big">${Number(shown).toFixed(1)}</span><span class="lbl">psid</span></div>
+     <p style="margin:0 0 10px;font-size:13.5px;color:var(--muted)">${d.rule||''}</p>
+     ${d.val?`<label class="lbl" for="rv">Value you are writing down</label>
+       <input id="rv" type="number" step="0.1" inputmode="decimal" placeholder="psid" style="margin:6px 0 12px">`:''}
+     <div class="radios">${d.verdicts.map((v,i)=>
+       `<label><input type="radio" name="vd" value="${i}">${v}</label>`).join('')}</div>
+     <div style="display:flex;gap:8px;margin-top:14px">
+       <button class="btn primary" data-go="1">Enter it on the form</button>
+       <button class="btn ghost" data-x="1">Back</button></div>
+     <p id="rerr" style="color:var(--fail);font-size:13px;margin:10px 0 0"></p>`);
+  s.addEventListener('click',e=>{
+    if(e.target.dataset.x)return closeModal();
+    if(!e.target.dataset.go)return;
+    const vi=s.querySelector('input[name=vd]:checked');
+    const rv=s.querySelector('#rv');
+    if(!vi||(d.val&&(!rv.value||isNaN(+rv.value))))
+      return s.querySelector('#rerr').textContent='Fill in both — a blank field is a rejected report.';
+    closeModal(); gradeRec(id,d.val?+rv.value:0,+vi.value);});
+}
+
+/* ---- the report form: Phoenix rejects a report for any blank field ---- */
+function showReport(){
+  const rows=Object.keys(G.recs).map(k=>`<tr><td>${RECS[k].q}</td>
+    <td class="n">${G.recs[k].val!=null?G.recs[k].val.toFixed(1)+' psid':'—'}</td>
+    <td>${RECS[k].verdicts?RECS[k].verdicts[G.recs[k].vi]:'—'}</td></tr>`).join('');
+  const s=modal('Test report — fill it out',
+    `<p style="margin:0 0 12px;font-size:13.5px;color:var(--muted)">
+      Both ABPA and ASSE grade the paperwork. Phoenix rejects a report for a single blank field.</p>
+     <div class="scroll-x"><table class="rep"><tr><th>Result</th><th>psid</th><th>Call</th></tr>
+       ${rows}</table></div>
+     <div class="grid2" style="margin-top:14px">
+       <div><label class="lbl" for="f1">Line pressure (psi)</label>
+         <input id="f1" type="number" style="margin-top:5px"></div>
+       <div><label class="lbl" for="f2">Certified tester no.</label>
+         <input id="f2" type="text" style="margin-top:5px"></div>
+       <div><label class="lbl" for="f3">Test kit serial no.</label>
+         <input id="f3" type="text" style="margin-top:5px"></div>
+       <div><label class="lbl" for="f4">Assembly verdict</label>
+         <select id="f4" style="margin-top:5px"><option value="">—</option>
+           <option value="p">Pass</option><option value="f">Fail</option></select></div>
+     </div>
+     <button class="btn primary" data-go="1" style="margin-top:16px">Submit the report</button>
+     <p id="perr" style="color:var(--fail);font-size:13px;margin:10px 0 0"></p>`);
+  s.addEventListener('click',e=>{
+    if(!e.target.dataset.go)return;
+    const v=i=>s.querySelector(i).value.trim(), pw=[];
+    [['#f1','Line pressure'],['#f2','Certified tester number'],
+     ['#f3','Test kit serial number'],['#f4','Pass / fail box']].forEach(f=>{
+      if(!v(f[0]))pw.push({cat:'paperwork',did:'Left '+f[1]+' blank',
+        want:'Every field completed',at:-1});});
+    if(pw.length&&!s.querySelector('#perr').dataset.warned){
+      s.querySelector('#perr').dataset.warned='1';
+      return s.querySelector('#perr').textContent=
+        pw.length+' field(s) blank. Submit again to hand it in as-is — it will count against you.';}
+    const want=scenarioPasses()?'p':'f';
+    if(v('#f4')&&v('#f4')!==want)pw.push({cat:'paperwork',
+      did:'Marked the assembly '+(v('#f4')==='p'?'Pass':'Fail'),
+      want:'This assembly should be marked '+(want==='p'?'Pass':'Fail'),at:-1});
+    closeModal(); G.reported=true;
+    pw.forEach(e2=>G.errs.push(e2));
+    const st=readStats(); pw.forEach(e2=>st.cats[e2.cat]=(st.cats[e2.cat]||0)+1);
+    try{localStorage.setItem(SKEY,JSON.stringify(st))}catch(e3){}
+    const r=G.pendingRun; r.errs=G.errs; r.pass=G.errs.length===0; renderResult(r);});
+}
+
+/* ===================== RESULTS ===================== */
+function showResult(run){
+  if(G.mode==='exam'&&!G.reported){G.pendingRun=run;return showReport()}
+  renderResult(run);
+}
+function renderResult(run){
+  $('#s-drill').hidden=true; $('#hud').style.display='none';
+  const sec=$('#s-result'); sec.hidden=false;
+  const n=run.errs.length, mm=Math.floor(run.secs/60), ss=run.secs%60;
+  const exam=G.mode==='exam';
+  let head,body='';
+  if(n===0){head=`<span class="chip pass">Procedure clean</span>`;
+    body=`<p style="margin:10px 0 0">Every step in order, every result called correctly.
+      That is what the proctor grades &mdash; whether the <i>assembly</i> passes is a separate
+      question, answered below.</p>`;}
+  else if(exam&&n===1){head=`<span class="chip warn">One error</span>`;
+    body=`<p style="margin:10px 0 0;font-size:17px;font-weight:600">"You have erred in your procedure."</p>
+      <p style="color:var(--muted);margin:8px 0 0">That is the entire sentence a real proctor says.
+      You do not get told what it was. Under ABPA rules you may restart this assembly once —
+      a second error on it ends the whole exam.</p>`;}
+  else{head=`<span class="chip fail">Failed</span>`;
+    body=`<p style="margin:10px 0 0">${n} errors. Two on one assembly terminates the performance
+      exam under both ABPA and ASSE rules. Here is everything, now that it's over:</p>`;}
+  const reveal=(!exam||n>=2)&&n>0;
+  const tbl=reveal?`<div class="scroll-x" style="margin-top:14px"><table class="rep">
+    <tr><th>What you did</th><th>What was required</th><th>Counts as</th></tr>
+    ${run.errs.map(e=>`<tr><td>${e.did}</td><td>${e.want}</td><td>${CATS[e.cat]||e.cat}</td></tr>`).join('')}
+    </table></div>`:'';
+  const truth=SCN[G.asm][G.scn];
+  sec.innerHTML=`<div class="panel" style="margin-top:20px"><div class="panel-h">
+      <span class="lbl">${ASM[G.asm].short} &middot; ${G.mode} mode</span>${head}</div>
+    <div class="panel-b">
+      ${body}${tbl}
+      <div class="stats" style="margin-top:18px">
+        <div class="stat"><span class="v">${mm}:${String(ss).padStart(2,'0')}</span>
+          <span class="k">Time (target ${TARGET/60}:00)</span></div>
+        <div class="stat"><span class="v">${n}</span><span class="k">Errors</span></div>
+        <div class="stat"><span class="v">${G.steps.length}</span><span class="k">Steps</span></div>
+      </div>
+      <div style="margin-top:16px;padding:12px 14px;background:var(--sunk);border-radius:9px">
+        <span class="lbl">The assembly itself</span>
+        <p style="margin:6px 0 0;font-size:13.5px">
+          The proctor had it set to <b>${truth.n}</b> &mdash; ${truth.d}.
+          It should have gone on the report as
+          <b style="color:${scenarioPasses()?'var(--pass)':'var(--fail)'}">${scenarioPasses()?'Pass':'Fail'}</b>.</p></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px">
+        <button class="btn primary" id="again">Run it again</button>
+        <button class="btn" id="back">Change the setup</button>
+      </div>
+    </div></div>`;
+  $('#again').onclick=()=>begin();
+  $('#back').onclick=()=>{sec.hidden=true;$('#s-setup').hidden=false;drawStats()};
+}
+
+/* ===================== SETUP ===================== */
+const MODES={learn:['Learn','Every step shown, with the reason behind it'],
+  practice:['Practice','Steps hidden, hint on request, told when you slip'],
+  exam:['Exam','Timed, silent, two-strike rule, report form at the end']};
+function opts(host,list,cur,cb){
+  const h=$(host); h.innerHTML=list.map(o=>
+    `<button class="opt" data-v="${o[0]}" aria-pressed="${o[0]===cur}">
+      <span class="t">${o[1]}</span><span class="d">${o[2]||''}</span></button>`).join('');
+  h.onclick=e=>{const b=e.target.closest('.opt');if(!b)return;cb(b.dataset.v);};
+}
+function drawSetup(){
+  opts('#pick-asm',Object.keys(ASM).map(k=>[k,ASM[k].short,ASM[k].name.split('— ')[1]]),
+    G.asm,v=>{G.asm=v;G.scn='ok';drawSetup()});
+  opts('#pick-kit',Object.keys(KITS).map(k=>[k,KITS[k].name.replace(' differential',''),KITS[k].hint]),
+    G.kit,v=>{G.kit=v;drawSetup()});
+  const sl=Object.keys(SCN[G.asm]).map(k=>[k,SCN[G.asm][k].n,SCN[G.asm][k].d]);
+  sl.push(['?','Random — hidden','You are not told. Diagnose it.']);
+  opts('#pick-scn',sl,G.scn,v=>{G.scn=v;drawSetup()});
+  opts('#pick-mode',Object.keys(MODES).map(k=>[k,MODES[k][0],MODES[k][1]]),G.mode,
+    v=>{G.mode=v;drawSetup()});
+  if(G.asm==='rp'&&G.kit==='three')0; // 3-valve RP has its own procedure
+}
+function drawStats(){
+  const s=readStats(),cats=Object.keys(CATS),tot=cats.reduce((a,c)=>a+(s.cats[c]||0),0);
+  if(!tot){$('#stats-box').innerHTML=
+    `<p style="margin:0;color:var(--muted);font-size:13.5px">
+      Nothing yet. After a few runs this panel shows which kind of mistake you actually make —
+      step order, hose hookup, purging air, speed, gauge elevation, diagnosis, or paperwork.
+      Knowing that beats guessing at what went wrong on exam day.</p>`;return}
+  const max=Math.max(...cats.map(c=>s.cats[c]||0));
+  const runs=s.runs.slice(-12), passed=runs.filter(r=>r.p).length;
+  $('#stats-box').innerHTML=
+    `<div class="stats" style="margin-bottom:14px">
+      <div class="stat"><span class="v">${s.runs.length}</span><span class="k">Runs</span></div>
+      <div class="stat"><span class="v">${passed}/${runs.length}</span><span class="k">Clean, last 12</span></div>
+      <div class="stat"><span class="v">${tot}</span><span class="k">Errors logged</span></div>
+    </div>`+
+    cats.filter(c=>s.cats[c]).sort((a,b)=>s.cats[b]-s.cats[a]).map(c=>
+      `<div style="margin-bottom:9px"><div style="display:flex;font-size:13px">
+        <span>${CATS[c]}</span><span class="num" style="margin-left:auto">${s.cats[c]}</span></div>
+        <div class="bar-track"><i style="width:${(s.cats[c]/max*100).toFixed(0)}%"></i></div></div>`).join('');
+}
+
+/* ===================== RUN ===================== */
+function begin(){
+  const keys=Object.keys(SCN[G.asm]);
+  G.realScn=G.scn==='?'?keys[Math.floor(Math.random()*keys.length)]:G.scn;
+  const hidden=G.scn==='?';
+  G.scn=G.realScn;
+  G.steps=PROC[G.asm][G.kit]; G.idx=0; G.errs=[]; G.struck=false; G.failed=false;
+  G.recs={}; G.ended=false; G.reported=false; G.hintOpen=false; G.sel=null;
+  G.drag=null; G.pending=null; G.suppressClick=false;
+  G.rig=freshRig(); enterItem();
+  $('#s-setup').hidden=true; $('#s-result').hidden=true; $('#s-drill').hidden=false;
+  $('#hud').style.display='flex';
+  $('#asm-name').textContent=ASM[G.asm].name;
+  $('#kit-chip').textContent=KITS[G.kit].name;
+  $('#scn-chip').textContent=hidden?'condition hidden':SCN[G.asm][G.scn].n;
+  $('#scn-chip').className='chip'+(hidden?' warn':'');
+  $('#log').innerHTML=''; drawField(); paint();
+  clearInterval(G.tick); startClock(); $('#timer').textContent='00:00';
+  window.scrollTo(0,0);
+}
+
+/* ===================== WIRING ===================== */
+const stageEl=$('#stage');
+stageEl.addEventListener('click',e=>{
+  if(G.suppressClick){G.suppressClick=false;return}
+  const kb=e.target.closest('[data-valve]');
+  if(kb){const v=kb.dataset.valve;
+    openPop(e.clientX,e.clientY,VALVES[v].n,[['Open',`nv.${v}.open`],
+      ['Open SLOWLY',`nv.${v}.openSlow`],['Open ONE turn',`nv.${v}.open1`],
+      ['Open a QUARTER turn',`nv.${v}.openQ`],['Close',`nv.${v}.close`]]);return}
+  const g=e.target.closest('.hot[data-comp]'); if(!g)return;
+  const c=g.dataset.comp;
+  if(c==='kitport'){
+    if(G.sel==='bypass')openPop(e.clientX,e.clientY,'Kit bypass port',
+      [['Attach the bypass hose here','hose.bypass@kit']]);
+    return}
+  const rows=menuFor(c); if(!rows.length)return;
+  openPop(e.clientX,e.clientY,c.startsWith('tc')?'Test cock '+c.slice(2):
+    c.startsWith('sov')?'Shutoff '+c.slice(3):c,rows);});
+
+/* --- touch / mouse hose dragging --- */
+function svgPt(e){const pt=stageEl.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;
+  return pt.matrixTransform(stageEl.getScreenCTM().inverse());}
+let dragRAF=0;
+stageEl.addEventListener('pointerdown',e=>{
+  const n=e.target.closest('[data-nub]'); if(!n)return;
+  e.preventDefault(); closePop();
+  G.pending={item:n.dataset.nub,x0:e.clientX,y0:e.clientY,id:e.pointerId,moved:false};
+  try{stageEl.setPointerCapture(e.pointerId)}catch(_){}
+});
+stageEl.addEventListener('pointermove',e=>{
+  const pd=G.pending; if(!pd||e.pointerId!==pd.id)return;
+  if(!pd.moved&&Math.hypot(e.clientX-pd.x0,e.clientY-pd.y0)<7)return;
+  pd.moved=true; const p=svgPt(e);
+  G.drag={item:pd.item,x:p.x,y:p.y};
+  if(!dragRAF)dragRAF=requestAnimationFrame(()=>{dragRAF=0;drawStage()});
+});
+stageEl.addEventListener('pointerup',e=>{
+  const pd=G.pending; if(!pd||e.pointerId!==pd.id)return;
+  G.pending=null; G.suppressClick=true;
+  setTimeout(()=>G.suppressClick=false,0);   // in case no click follows this pointerup
+  if(!pd.moved){G.sel=G.sel===pd.item?null:pd.item; G.drag=null; drawStage(); return}
+  const p=svgPt(e); G.drag=null;
+  const best=dropTargets(pd.item)
+    .map(t=>({t,d:Math.hypot(t.x-p.x,t.y-p.y)})).sort((a,b)=>a.d-b.d)[0];
+  if(best&&best.d<=55)dropOn(pd.item,best.t,e);
+  else detachMaybe(pd.item,e);
+  drawStage();
+});
+stageEl.addEventListener('pointercancel',()=>{G.pending=null;G.drag=null;drawStage()});
+$('#field-acts').addEventListener('click',e=>{
+  const b=e.target.closest('[data-field]');
+  if(b)return act(b.dataset.field,b.textContent.trim());
+  if(e.target.closest('[data-rec]'))pickRec();});
+$('#hint').onclick=()=>{G.hintOpen=!G.hintOpen;
+  if(G.hintOpen&&G.mode!=='learn')log('Asked for a hint','');
+  drawStep();};
+$('#skip').onclick=()=>{const w=curStep(); if(!w)return;
+  if(!G.struck){G.struck=true;
+    G.errs.push({cat:w.cat,did:'Skipped the step',want:w.say,at:G.idx});}
+  log('Skipped: '+w.say,''); apply(w.d);
+  if(w.d.startsWith('rec.')){const id=w.d.slice(4),t=SCN[G.asm][G.scn].r[id];
+    G.recs[id]={val:t[0],vi:t[1],ok:false,truth:t};}
+  advance(w.d); paint();};
+$('#quit').onclick=()=>{if(confirm('End this run and see the results?'))finish()};
+$('#reset-stats').onclick=()=>{if(confirm('Clear all recorded stats?')){
+  try{localStorage.removeItem(SKEY)}catch(e){} drawStats();}};
+$('#start').onclick=begin;
+$('#theme').onclick=()=>{const r=document.documentElement;
+  const dark=r.dataset.theme?r.dataset.theme==='dark':
+    matchMedia('(prefers-color-scheme:dark)').matches;
+  r.dataset.theme=dark?'light':'dark';};
+$('#src-list').innerHTML=SOURCES.map(s=>'<li>'+s+'</li>').join('');
+drawSetup(); drawStats();
+
+</script>
+
+</body>
+</html>
